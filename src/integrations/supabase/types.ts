@@ -14,7 +14,308 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      classrooms: {
+        Row: {
+          capacity: number | null
+          created_at: string
+          description: string | null
+          id: string
+          location: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      equipment: {
+        Row: {
+          available_quantity: number
+          brand: string | null
+          category_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          model: string | null
+          name: string
+          purchase_date: string | null
+          quantity: number
+          serial_number: string | null
+          state: Database["public"]["Enums"]["equipment_state"]
+          updated_at: string
+          warranty_expiration: string | null
+        }
+        Insert: {
+          available_quantity?: number
+          brand?: string | null
+          category_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          model?: string | null
+          name: string
+          purchase_date?: string | null
+          quantity?: number
+          serial_number?: string | null
+          state?: Database["public"]["Enums"]["equipment_state"]
+          updated_at?: string
+          warranty_expiration?: string | null
+        }
+        Update: {
+          available_quantity?: number
+          brand?: string | null
+          category_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          model?: string | null
+          name?: string
+          purchase_date?: string | null
+          quantity?: number
+          serial_number?: string | null
+          state?: Database["public"]["Enums"]["equipment_state"]
+          updated_at?: string
+          warranty_expiration?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_history: {
+        Row: {
+          action: string
+          changed_by: string
+          created_at: string
+          equipment_id: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+        }
+        Insert: {
+          action: string
+          changed_by: string
+          created_at?: string
+          equipment_id: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string
+          created_at?: string
+          equipment_id?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_history_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movements: {
+        Row: {
+          actual_return_date: string | null
+          classroom_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          equipment_id: string
+          id: string
+          movement_type: Database["public"]["Enums"]["movement_type"]
+          quantity: number
+          scheduled_return_date: string | null
+          status: string
+          teacher_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_return_date?: string | null
+          classroom_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          equipment_id: string
+          id?: string
+          movement_type: Database["public"]["Enums"]["movement_type"]
+          quantity?: number
+          scheduled_return_date?: string | null
+          status?: string
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_return_date?: string | null
+          classroom_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          equipment_id?: string
+          id?: string
+          movement_type?: Database["public"]["Enums"]["movement_type"]
+          quantity?: number
+          scheduled_return_date?: string | null
+          status?: string
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movements_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      teachers: {
+        Row: {
+          created_at: string
+          dni: string | null
+          email: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dni?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dni?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +324,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      equipment_state:
+        | "disponible"
+        | "en_uso"
+        | "mantenimiento"
+        | "dañado"
+        | "baja"
+      movement_type: "asignacion" | "devolucion" | "mantenimiento" | "baja"
+      user_role: "administrador" | "tecnico"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +458,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      equipment_state: [
+        "disponible",
+        "en_uso",
+        "mantenimiento",
+        "dañado",
+        "baja",
+      ],
+      movement_type: ["asignacion", "devolucion", "mantenimiento", "baja"],
+      user_role: ["administrador", "tecnico"],
+    },
   },
 } as const
