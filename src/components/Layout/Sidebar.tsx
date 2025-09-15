@@ -33,21 +33,21 @@ const menuItems = [
     icon: BarChart3,
     href: '/reports',
   },
-  {
-    title: 'Docentes',
-    icon: Users,
-    href: '/teachers',
-  },
+  // {
+  //   title: 'Docentes',
+  //   icon: Users,
+  //   href: '/teachers',
+  // },
   {
     title: 'Chatbot',
     icon: MessageCircle,
     href: '/chat',
   },
-  {
-    title: 'Configuración',
-    icon: Settings,
-    href: '/settings',
-  },
+  // {
+  //   title: 'Configuración',
+  //   icon: Settings,
+  //   href: '/settings',
+  // },
 ];
 
 export const Sidebar = () => {
