@@ -1,13 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import React, { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Category {
   id: string;
@@ -23,7 +34,7 @@ interface Product {
   serial_number: string;
   quantity: number;
   available_quantity: number;
-  state: 'disponible' | 'en_uso' | 'mantenimiento' | 'dañado' | 'baja';
+  state: "disponible" | "en_uso" | "mantenimiento" | "dañado" | "baja";
   category_id: string;
   purchase_date?: string;
   warranty_expiration?: string;
@@ -37,30 +48,35 @@ interface ProductModalProps {
 }
 
 const equipmentStates = [
-  { value: 'disponible', label: 'Disponible' },
-  { value: 'en_uso', label: 'En Uso' },
-  { value: 'mantenimiento', label: 'Mantenimiento' },
-  { value: 'dañado', label: 'Dañado' },
-  { value: 'baja', label: 'Baja' },
+  { value: "disponible", label: "Disponible" },
+  { value: "en_uso", label: "En Uso" },
+  { value: "mantenimiento", label: "Mantenimiento" },
+  { value: "dañado", label: "Dañado" },
+  { value: "baja", label: "Baja" },
 ];
 
-export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, product, onSave }) => {
+export const ProductModal: React.FC<ProductModalProps> = ({
+  isOpen,
+  onClose,
+  product,
+  onSave,
+}) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState<Product>({
-    name: '',
-    description: '',
-    brand: '',
-    model: '',
-    serial_number: '',
+    name: "",
+    description: "",
+    brand: "",
+    model: "",
+    serial_number: "",
     quantity: 1,
     available_quantity: 1,
-    state: 'disponible',
-    category_id: '',
-    purchase_date: '',
-    warranty_expiration: '',
+    state: "disponible",
+    category_id: "",
+    purchase_date: "",
+    warranty_expiration: "",
   });
 
   useEffect(() => {
@@ -69,22 +85,22 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
       if (product) {
         setFormData({
           ...product,
-          purchase_date: product.purchase_date || '',
-          warranty_expiration: product.warranty_expiration || '',
+          purchase_date: product.purchase_date || "",
+          warranty_expiration: product.warranty_expiration || "",
         });
       } else {
         setFormData({
-          name: '',
-          description: '',
-          brand: '',
-          model: '',
-          serial_number: '',
+          name: "",
+          description: "",
+          brand: "",
+          model: "",
+          serial_number: "",
           quantity: 1,
           available_quantity: 1,
-          state: 'disponible',
-          category_id: '',
-          purchase_date: '',
-          warranty_expiration: '',
+          state: "disponible",
+          category_id: "",
+          purchase_date: "",
+          warranty_expiration: "",
         });
       }
     }
@@ -93,14 +109,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
   const fetchCategories = async () => {
     try {
       const { data, error } = await supabase
-        .from('categories')
-        .select('id, name')
-        .order('name');
+        .from("categories")
+        .select("id, name")
+        .order("name");
 
       if (error) throw error;
       setCategories(data || []);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error("Error fetching categories:", error);
     }
   };
 
@@ -110,26 +126,43 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
 
     setLoading(true);
     try {
+      // const { categories, ...cleanFormData } = formData; // 🚫 eliminar si existe
+
       const submitData = {
-        ...formData,
-        created_by: user.id,
+        name: formData.name,
+        description: formData.description,
+        brand: formData.brand,
+        model: formData.model,
+        serial_number: formData.serial_number,
+        quantity: formData.quantity,
+        available_quantity: formData.available_quantity,
+        state: formData.state,
+        category_id: formData.category_id,
         purchase_date: formData.purchase_date || null,
         warranty_expiration: formData.warranty_expiration || null,
+        created_by: user.id,
       };
+
+      // const submitData = {
+      //   ...formData,
+      //   created_by: user.id,
+      //   purchase_date: formData.purchase_date || null,
+      //   warranty_expiration: formData.warranty_expiration || null,
+      // };
 
       if (product?.id) {
         // Update existing product
         const { error } = await supabase
-          .from('equipment')
+          .from("equipment")
           .update(submitData)
-          .eq('id', product.id);
+          .eq("id", product.id);
 
         if (error) throw error;
 
         // Log the movement
-        await supabase.from('equipment_history').insert({
+        await supabase.from("equipment_history").insert({
           equipment_id: product.id,
-          action: 'update',
+          action: "update",
           old_values: product as any,
           new_values: submitData as any,
           changed_by: user.id,
@@ -142,7 +175,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
       } else {
         // Create new product
         const { data: newProduct, error } = await supabase
-          .from('equipment')
+          .from("equipment")
           .insert(submitData)
           .select()
           .single();
@@ -150,9 +183,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
         if (error) throw error;
 
         // Log the movement
-        await supabase.from('equipment_history').insert({
+        await supabase.from("equipment_history").insert({
           equipment_id: newProduct.id,
-          action: 'create',
+          action: "create",
           new_values: submitData as any,
           changed_by: user.id,
         });
@@ -166,7 +199,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
       onSave();
       onClose();
     } catch (error) {
-      console.error('Error saving product:', error);
+      console.error("Error saving product:", error);
       toast({
         title: "Error",
         description: "No se pudo guardar el producto",
@@ -178,10 +211,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
   };
 
   const handleInputChange = (field: keyof Product, value: string | number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: value,
-      ...(field === 'quantity' && { available_quantity: typeof value === 'number' ? value : parseInt(value) || 1 }),
+      ...(field === "quantity" && {
+        available_quantity:
+          typeof value === "number" ? value : parseInt(value) || 1,
+      }),
     }));
   };
 
@@ -190,7 +226,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {product ? 'Editar Producto' : 'Nuevo Producto'}
+            {product ? "Editar Producto" : "Nuevo Producto"}
           </DialogTitle>
         </DialogHeader>
 
@@ -201,7 +237,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={(e) => handleInputChange("name", e.target.value)}
                 required
               />
             </div>
@@ -209,7 +245,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
               <Label htmlFor="category">Categoría *</Label>
               <Select
                 value={formData.category_id}
-                onValueChange={(value) => handleInputChange('category_id', value)}
+                onValueChange={(value) =>
+                  handleInputChange("category_id", value)
+                }
                 required
               >
                 <SelectTrigger>
@@ -231,7 +269,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(e) => handleInputChange("description", e.target.value)}
             />
           </div>
 
@@ -241,7 +279,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
               <Input
                 id="brand"
                 value={formData.brand}
-                onChange={(e) => handleInputChange('brand', e.target.value)}
+                onChange={(e) => handleInputChange("brand", e.target.value)}
               />
             </div>
             <div>
@@ -249,7 +287,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
               <Input
                 id="model"
                 value={formData.model}
-                onChange={(e) => handleInputChange('model', e.target.value)}
+                onChange={(e) => handleInputChange("model", e.target.value)}
               />
             </div>
           </div>
@@ -260,7 +298,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
               <Input
                 id="serial_number"
                 value={formData.serial_number}
-                onChange={(e) => handleInputChange('serial_number', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("serial_number", e.target.value)
+                }
               />
             </div>
             <div>
@@ -270,7 +310,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
                 type="number"
                 min="1"
                 value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 1)}
+                onChange={(e) =>
+                  handleInputChange("quantity", parseInt(e.target.value) || 1)
+                }
                 required
               />
             </div>
@@ -279,10 +321,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="state">Estado</Label>
-            <Select
-              value={formData.state}
-              onValueChange={(value) => handleInputChange('state', value as Product['state'])}
-            >
+              <Select
+                value={formData.state}
+                onValueChange={(value) =>
+                  handleInputChange("state", value as Product["state"])
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -301,18 +345,24 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
                 id="purchase_date"
                 type="date"
                 value={formData.purchase_date}
-                onChange={(e) => handleInputChange('purchase_date', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("purchase_date", e.target.value)
+                }
               />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="warranty_expiration">Fecha de Vencimiento de Garantía</Label>
+            <Label htmlFor="warranty_expiration">
+              Fecha de Vencimiento de Garantía
+            </Label>
             <Input
               id="warranty_expiration"
               type="date"
               value={formData.warranty_expiration}
-              onChange={(e) => handleInputChange('warranty_expiration', e.target.value)}
+              onChange={(e) =>
+                handleInputChange("warranty_expiration", e.target.value)
+              }
             />
           </div>
 
@@ -321,7 +371,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, pro
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Guardando...' : 'Guardar'}
+              {loading ? "Guardando..." : "Guardar"}
             </Button>
           </div>
         </form>
