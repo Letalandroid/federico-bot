@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Filter, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Table,
   TableBody,
@@ -21,6 +22,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ProductModal } from '@/components/Inventory/ProductModal';
 
 interface Equipment {
   id: string;
@@ -31,7 +43,7 @@ interface Equipment {
   serial_number: string;
   quantity: number;
   available_quantity: number;
-  state: string;
+  state: 'disponible' | 'en_uso' | 'mantenimiento' | 'dañado' | 'baja';
   category_id: string;
   categories: { name: string };
 }
@@ -41,7 +53,12 @@ const Inventory = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [stateFilter, setStateFilter] = useState('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | undefined>();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [equipmentToDelete, setEquipmentToDelete] = useState<Equipment | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchEquipment();
@@ -103,6 +120,54 @@ const Inventory = () => {
     return matchesSearch && matchesState;
   });
 
+  const handleDelete = async () => {
+    if (!equipmentToDelete || !user) return;
+
+    try {
+      // Log the movement before deleting
+      await supabase.from('equipment_history').insert({
+        equipment_id: equipmentToDelete.id,
+        action: 'delete',
+        old_values: equipmentToDelete as any,
+        changed_by: user.id,
+      });
+
+      const { error } = await supabase
+        .from('equipment')
+        .delete()
+        .eq('id', equipmentToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Equipo eliminado correctamente",
+      });
+
+      fetchEquipment();
+    } catch (error) {
+      console.error('Error deleting equipment:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el equipo",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setEquipmentToDelete(null);
+    }
+  };
+
+  const openEditModal = (equipment: Equipment) => {
+    setSelectedEquipment(equipment);
+    setIsModalOpen(true);
+  };
+
+  const openDeleteDialog = (equipment: Equipment) => {
+    setEquipmentToDelete(equipment);
+    setDeleteDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -124,7 +189,7 @@ const Inventory = () => {
             Gestiona los equipos tecnológicos de la institución
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Agregar Equipo
         </Button>
@@ -228,10 +293,10 @@ const Inventory = () => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => openEditModal(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(item)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -242,6 +307,34 @@ const Inventory = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <ProductModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedEquipment(undefined);
+        }}
+        product={selectedEquipment}
+        onSave={fetchEquipment}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el equipo
+              "{equipmentToDelete?.name}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

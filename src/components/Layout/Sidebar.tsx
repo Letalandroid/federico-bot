@@ -24,6 +24,11 @@ const menuItems = [
     href: '/inventory',
   },
   {
+    title: 'Categorías',
+    icon: Settings,
+    href: '/categories',
+  },
+  {
     title: 'Movimientos',
     icon: ArrowRightLeft,
     href: '/movements',
