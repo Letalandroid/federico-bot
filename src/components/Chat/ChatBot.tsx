@@ -37,8 +37,17 @@ const ChatBot = () => {
   }, [messages]);
 
   const getResponseBot = async () => {
-    const res = await fetch('')
-  }
+    const res = await fetch(import.meta.env.VITE_N8N_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        inputMessage,
+      }),
+    });
+
+    const data = await res.json();
+
+    return data?.response ?? "";
+  };
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -58,7 +67,9 @@ const ChatBot = () => {
       // Simulate API call - replace with actual chatbot API later
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const botResponse = generateBotResponse(inputMessage);
+      const botResponse = import.meta.env.VITE_N8N_URL
+        ? await getResponseBot()
+        : generateBotResponse(inputMessage);
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -161,7 +172,7 @@ const ChatBot = () => {
                     }`}
                   >
                     <div className="whitespace-pre-wrap text-sm">
-                      {message.content}
+                      {message.content ?? ""}
                     </div>
                     <div className={`text-xs mt-1 opacity-70`}>
                       {formatTime(message.timestamp)}
