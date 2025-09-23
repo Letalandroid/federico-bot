@@ -189,7 +189,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           new_values: submitData as any,
           changed_by: user.id,
         });
-
+// 
         toast({
           title: "Éxito",
           description: "Producto creado correctamente",
