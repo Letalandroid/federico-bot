@@ -11,7 +11,8 @@ import {
   Settings,
   Users,
   AlertTriangle,
-  UserPlus
+  UserPlus,
+  HandCoins
 } from 'lucide-react';
 
 const menuItems = [
@@ -39,6 +40,11 @@ const menuItems = [
     title: 'Registro de Equipos',
     icon: AlertTriangle,
     href: '/equipment-registry',
+  },
+  {
+    title: 'Préstamos de Equipos',
+    icon: HandCoins,
+    href: '/equipment-loans',
   },
   {
     title: 'Gestión de Usuarios',

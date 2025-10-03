@@ -74,7 +74,6 @@ const Users = () => {
         .from('profiles')
         .select(`
           id,
-          user_id,
           full_name,
           created_at
         `)
@@ -89,10 +88,10 @@ const Users = () => {
       if (rolesError) throw rolesError;
 
       const usersWithRoles = profiles?.map(profile => {
-        const userRoles = rolesData?.filter(r => r.user_id === profile.user_id) || [];
+        const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
         
         return {
-          id: profile.user_id,
+          id: profile.id,
           email: 'Usuario del Sistema', // Simplified to avoid admin permissions
           full_name: profile.full_name,
           created_at: profile.created_at,

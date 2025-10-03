@@ -11,6 +11,7 @@ import Categories from "./pages/Categories";
 import Movements from "./pages/Movements";
 import Reports from "./pages/Reports";
 import EquipmentRegistry from "./pages/EquipmentRegistry";
+import EquipmentLoans from "./pages/EquipmentLoans";
 import Users from "./pages/Users";
 import ChatBot from "./components/Chat/ChatBot";
 import Auth from "./pages/Auth";
@@ -24,7 +25,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<AppLayout />}>
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="movements" element={<Movements />} />
               <Route path="reports" element={<Reports />} />
               <Route path="equipment-registry" element={<EquipmentRegistry />} />
+              <Route path="equipment-loans" element={<EquipmentLoans />} />
               <Route path="users" element={<Users />} />
               <Route path="chat" element={<ChatBot />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
