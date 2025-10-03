@@ -133,37 +133,40 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id"]
           },
         ]
       }
       equipment_history: {
         Row: {
           action: string
-          changed_by: string
+          changed_by: string | null
           created_at: string
           equipment_id: string
           id: string
           new_values: Json | null
           old_values: Json | null
+          reason: string | null
         }
         Insert: {
           action: string
-          changed_by: string
+          changed_by?: string | null
           created_at?: string
           equipment_id: string
           id?: string
           new_values?: Json | null
           old_values?: Json | null
+          reason?: string | null
         }
         Update: {
           action?: string
-          changed_by?: string
+          changed_by?: string | null
           created_at?: string
           equipment_id?: string
           id?: string
           new_values?: Json | null
           old_values?: Json | null
+          reason?: string | null
         }
         Relationships: [
           {
@@ -171,14 +174,7 @@ export type Database = {
             columns: ["changed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "equipment_history_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipment"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -259,6 +255,24 @@ export type Database = {
           },
         ]
       }
+      n8n_chat_histories: {
+        Row: {
+          id: number
+          message: Json
+          session_id: string
+        }
+        Insert: {
+          id?: number
+          message: Json
+          session_id: string
+        }
+        Update: {
+          id?: number
+          message?: Json
+          session_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -316,14 +330,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "administrador" | "tecnico"
       equipment_state:
         | "disponible"
         | "en_uso"
@@ -459,6 +501,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["administrador", "tecnico"],
       equipment_state: [
         "disponible",
         "en_uso",
