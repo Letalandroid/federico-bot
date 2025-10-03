@@ -50,11 +50,11 @@ const menuItems = [
     icon: BarChart3,
     href: '/reports',
   },
-  {
-    title: 'Usuarios',
-    icon: Users,
-    href: '/users',
-  },
+  // {
+  //   title: 'Usuarios',
+  //   icon: Users,
+  //   href: '/users',
+  // },
   {
     title: 'Chatbot',
     icon: MessageCircle,
