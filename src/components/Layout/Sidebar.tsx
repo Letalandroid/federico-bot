@@ -9,7 +9,9 @@ import {
   MessageCircle,
   GraduationCap,
   Settings,
-  Users
+  Users,
+  AlertTriangle,
+  UserPlus
 } from 'lucide-react';
 
 const menuItems = [
@@ -34,25 +36,30 @@ const menuItems = [
     href: '/movements',
   },
   {
+    title: 'Registro de Equipos',
+    icon: AlertTriangle,
+    href: '/equipment-registry',
+  },
+  {
+    title: 'Gestión de Usuarios',
+    icon: UserPlus,
+    href: '/users',
+  },
+  {
     title: 'Reportes',
     icon: BarChart3,
     href: '/reports',
   },
-  {
-    title: 'Usuarios',
-    icon: Users,
-    href: '/users',
-  },
+  // {
+  //   title: 'Usuarios',
+  //   icon: Users,
+  //   href: '/users',
+  // },
   {
     title: 'Chatbot',
     icon: MessageCircle,
     href: '/chat',
   },
-  // {
-  //   title: 'Configuración',
-  //   icon: Settings,
-  //   href: '/settings',
-  // },
 ];
 
 export const Sidebar = () => {

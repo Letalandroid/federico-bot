@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Json } from "@/integrations/supabase/types";
 
 interface Category {
   id: string;
@@ -159,12 +160,26 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
         if (error) throw error;
 
-        // Log the movement
+        // Log the movement with detailed changes
+        const changes: Array<{field: string, old_value: unknown, new_value: unknown}> = [];
+        const oldVals = product as unknown as Record<string, unknown>;
+        const newVals = submitData as unknown as Record<string, unknown>;
+
+        Object.keys(newVals).forEach(key => {
+          if (oldVals[key] !== newVals[key] && key !== 'updated_at') {
+            changes.push({
+              field: key,
+              old_value: oldVals[key],
+              new_value: newVals[key]
+            });
+          }
+        });
+
         await supabase.from("equipment_history").insert({
           equipment_id: product.id,
           action: "update",
-          old_values: product as any,
-          new_values: submitData as any,
+          old_values: product as unknown as Json,
+          new_values: submitData as unknown as Json,
           changed_by: user.id,
         });
 
@@ -186,7 +201,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         await supabase.from("equipment_history").insert({
           equipment_id: newProduct.id,
           action: "create",
-          new_values: submitData as any,
+          new_values: submitData as unknown as Json,
           changed_by: user.id,
         });
 // 

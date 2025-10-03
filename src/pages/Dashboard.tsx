@@ -1,16 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, AlertTriangle, TrendingUp, Users, ArrowRightLeft } from 'lucide-react';
+import { Package, AlertTriangle, TrendingUp, Users, ArrowRightLeft, FileSpreadsheet, Wrench, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 interface DashboardStats {
   totalEquipment: number;
   availableEquipment: number;
   inUseEquipment: number;
   damagedEquipment: number;
+  maintenanceEquipment: number;
+  lowStockEquipment: number;
   totalMovements: number;
-  activeMovements: number;
+  totalUsers: number;
+  activeUsers: number;
+  totalRegistries: number;
+  pendingRegistries: number;
+  recentMovements: any[];
 }
 
 const Dashboard = () => {
@@ -19,8 +27,14 @@ const Dashboard = () => {
     availableEquipment: 0,
     inUseEquipment: 0,
     damagedEquipment: 0,
+    maintenanceEquipment: 0,
+    lowStockEquipment: 0,
     totalMovements: 0,
-    activeMovements: 0,
+    totalUsers: 0,
+    activeUsers: 0,
+    totalRegistries: 0,
+    pendingRegistries: 0,
+    recentMovements: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -33,11 +47,31 @@ const Dashboard = () => {
       // Fetch equipment stats
       const { data: equipment } = await supabase
         .from('equipment')
-        .select('state');
+        .select('state, available_quantity, quantity');
 
       // Fetch movements stats
       const { data: movements } = await supabase
-        .from('movements')
+        .from('equipment_history')
+        .select(`
+          *,
+          equipment:equipment!equipment_history_equipment_id_fkey (
+            name
+          ),
+          profiles:profiles!equipment_history_changed_by_fkey (
+            full_name
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // Fetch users stats
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('is_active');
+
+      // Fetch equipment registries stats
+      const { data: registries } = await supabase
+        .from('equipment_registry')
         .select('status');
 
       if (equipment) {
@@ -45,17 +79,28 @@ const Dashboard = () => {
         const availableEquipment = equipment.filter(e => e.state === 'disponible').length;
         const inUseEquipment = equipment.filter(e => e.state === 'en_uso').length;
         const damagedEquipment = equipment.filter(e => e.state === 'dañado').length;
+        const maintenanceEquipment = equipment.filter(e => e.state === 'mantenimiento').length;
+        const lowStockEquipment = equipment.filter(e => e.available_quantity < 5).length;
 
         const totalMovements = movements?.length || 0;
-        const activeMovements = movements?.filter(m => m.status === 'activo').length || 0;
+        const totalUsers = users?.length || 0;
+        const activeUsers = users?.filter(u => u.is_active).length || 0;
+        const totalRegistries = registries?.length || 0;
+        const pendingRegistries = registries?.filter(r => r.status === 'pendiente').length || 0;
 
         setStats({
           totalEquipment,
           availableEquipment,
           inUseEquipment,
           damagedEquipment,
+          maintenanceEquipment,
+          lowStockEquipment,
           totalMovements,
-          activeMovements,
+          totalUsers,
+          activeUsers,
+          totalRegistries,
+          pendingRegistries,
+          recentMovements: movements || [],
         });
       }
     } catch (error) {
@@ -72,6 +117,7 @@ const Dashboard = () => {
       description: 'Equipos registrados',
       icon: Package,
       color: 'text-primary',
+      link: '/inventory',
     },
     {
       title: 'Equipos Disponibles',
@@ -81,10 +127,10 @@ const Dashboard = () => {
       color: 'text-success',
     },
     {
-      title: 'Equipos en Uso',
-      value: stats.inUseEquipment,
-      description: 'Actualmente asignados',
-      icon: Users,
+      title: 'Equipos en Mantenimiento',
+      value: stats.maintenanceEquipment,
+      description: 'En reparación',
+      icon: Wrench,
       color: 'text-warning',
     },
     {
@@ -95,11 +141,27 @@ const Dashboard = () => {
       color: 'text-destructive',
     },
     {
-      title: 'Movimientos Activos',
-      value: stats.activeMovements,
-      description: 'En curso',
-      icon: ArrowRightLeft,
+      title: 'Bajo Stock',
+      value: stats.lowStockEquipment,
+      description: 'Menos de 5 unidades',
+      icon: AlertTriangle,
+      color: 'text-orange-500',
+    },
+    {
+      title: 'Usuarios Activos',
+      value: stats.activeUsers,
+      description: `De ${stats.totalUsers} total`,
+      icon: UserPlus,
       color: 'text-info',
+      link: '/users',
+    },
+    {
+      title: 'Registros Pendientes',
+      value: stats.pendingRegistries,
+      description: 'Requieren revisión',
+      icon: FileSpreadsheet,
+      color: 'text-purple-500',
+      link: '/equipment-registry',
     },
   ];
 
@@ -133,24 +195,29 @@ const Dashboard = () => {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {statCards.map((card, index) => {
           const Icon = card.icon;
+          const CardComponent = card.link ? Link : 'div';
+          const cardProps = card.link ? { to: card.link } : {};
+          
           return (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {card.title}
-                </CardTitle>
-                <Icon className={`h-4 w-4 ${card.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{card.value}</div>
-                <p className="text-xs text-muted-foreground">
-                  {card.description}
-                </p>
-              </CardContent>
-            </Card>
+            <CardComponent key={index} {...cardProps}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    {card.title}
+                  </CardTitle>
+                  <Icon className={`h-4 w-4 ${card.color}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{card.value}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {card.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </CardComponent>
           );
         })}
       </div>
@@ -202,27 +269,59 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-success rounded-full"></div>
-                <p className="text-sm">
-                  <span className="font-medium">Equipo agregado:</span> Proyector Epson
-                </p>
-                <span className="text-xs text-muted-foreground ml-auto">Hace 2h</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-warning rounded-full"></div>
-                <p className="text-sm">
-                  <span className="font-medium">Asignación:</span> Laptop HP a Aula 201
-                </p>
-                <span className="text-xs text-muted-foreground ml-auto">Hace 4h</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-info rounded-full"></div>
-                <p className="text-sm">
-                  <span className="font-medium">Mantenimiento:</span> Impresora Canon
-                </p>
-                <span className="text-xs text-muted-foreground ml-auto">Hace 1d</span>
-              </div>
+              {stats.recentMovements.length > 0 ? (
+                stats.recentMovements.map((movement, index) => {
+                  const getActionColor = (action: string) => {
+                    const colors = {
+                      create: 'bg-success',
+                      update: 'bg-warning',
+                      delete: 'bg-destructive',
+                      registry: 'bg-info',
+                    };
+                    return colors[action as keyof typeof colors] || 'bg-muted';
+                  };
+
+                  const getActionLabel = (action: string) => {
+                    const labels = {
+                      create: 'Creado',
+                      update: 'Actualizado',
+                      delete: 'Eliminado',
+                      registry: 'Registrado',
+                    };
+                    return labels[action as keyof typeof labels] || action;
+                  };
+
+                  const timeAgo = new Date(movement.created_at);
+                  const now = new Date();
+                  const diffInHours = Math.floor((now.getTime() - timeAgo.getTime()) / (1000 * 60 * 60));
+                  const timeText = diffInHours < 1 ? 'Hace menos de 1h' : 
+                                 diffInHours < 24 ? `Hace ${diffInHours}h` : 
+                                 `Hace ${Math.floor(diffInHours / 24)}d`;
+
+                  return (
+                    <div key={movement.id} className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${getActionColor(movement.action)}`}></div>
+                      <p className="text-sm flex-1">
+                        <span className="font-medium">{getActionLabel(movement.action)}:</span> 
+                        {movement.equipment?.name || 'Equipo eliminado'}
+                      </p>
+                      <span className="text-xs text-muted-foreground">{timeText}</span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  No hay actividad reciente
+                </div>
+              )}
+            </div>
+            <div className="mt-4">
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link to="/movements">
+                  Ver todos los movimientos
+                  <ArrowRightLeft className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
