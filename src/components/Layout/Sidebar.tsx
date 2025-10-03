@@ -51,6 +51,11 @@ const menuItems = [
     href: '/reports',
   },
   {
+    title: 'Usuarios',
+    icon: Users,
+    href: '/users',
+  },
+  {
     title: 'Chatbot',
     icon: MessageCircle,
     href: '/chat',
