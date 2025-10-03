@@ -22,6 +22,8 @@ interface LowStockItem {
   name: string;
   brand: string;
   model: string;
+  serial_number: string;
+  description: string;
   available_quantity: number;
   quantity: number;
   state: string;
@@ -34,12 +36,13 @@ interface MovementReport {
   id: string;
   action: string;
   created_at: string;
+  reason: string | null;
   equipment: {
     name: string;
-  };
+  } | null;
   profiles: {
     full_name: string;
-  };
+  } | null;
 }
 
 const Reports = () => {
@@ -134,27 +137,52 @@ const Reports = () => {
       return;
     }
 
-    const exportData = lowStockItems.map(item => ({
-      'Nombre': item.name,
-      'Categoría': item.categories?.name,
-      'Marca': item.brand,
-      'Modelo': item.model,
-      'Disponible': item.available_quantity,
-      'Total': item.quantity,
-      'Estado': item.state,
+    const exportData = lowStockItems.map((item, index) => ({
+      'N°': index + 1,
+      'NOMBRE DEL EQUIPO': item.name,
+      'CATEGORÍA': item.categories?.name || 'Sin categoría',
+      'MARCA': item.brand || 'N/A',
+      'MODELO': item.model || 'N/A',
+      'N° SERIE': item.serial_number || 'N/A',
+      'CANTIDAD DISPONIBLE': item.available_quantity,
+      'CANTIDAD TOTAL': item.quantity,
+      'ESTADO': getStateLabel(item.state),
+      'DESCRIPCIÓN': item.description || 'N/A',
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 5 },   // N°
+      { wch: 35 },  // NOMBRE
+      { wch: 20 },  // CATEGORÍA
+      { wch: 15 },  // MARCA
+      { wch: 15 },  // MODELO
+      { wch: 15 },  // N° SERIE
+      { wch: 12 },  // CANTIDAD DISPONIBLE
+      { wch: 12 },  // CANTIDAD TOTAL
+      { wch: 15 },  // ESTADO
+      { wch: 40 },  // DESCRIPCIÓN
+    ];
+
+    // Style header row
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (!ws[cellAddress]) continue;
+      ws[cellAddress].s = {
+        font: { bold: true },
+        fill: { fgColor: { rgb: "4472C4" } },
+        alignment: { horizontal: "center", vertical: "center" },
+      };
+    }
+
     XLSX.utils.book_append_sheet(wb, ws, 'Bajo Stock');
 
-    // Auto-size columns
-    const colWidths = Object.keys(exportData[0] || {}).map(key => ({
-      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
-    }));
-    ws['!cols'] = colWidths;
-
-    XLSX.writeFile(wb, `Reporte_Bajo_Stock_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const fileName = `Reporte_Bajo_Stock_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
 
     toast({
       title: "Éxito",
@@ -172,25 +200,45 @@ const Reports = () => {
       return;
     }
 
-    const exportData = movements.map(movement => ({
-      'Fecha': new Date(movement.created_at).toLocaleDateString('es-ES'),
-      'Hora': new Date(movement.created_at).toLocaleTimeString('es-ES'),
-      'Equipo': movement.equipment?.name || 'N/A',
-      'Acción': movement.action,
-      'Usuario': movement.profiles?.full_name || 'N/A',
+    const exportData = movements.map((movement, index) => ({
+      'N°': index + 1,
+      'FECHA': new Date(movement.created_at).toLocaleDateString('es-ES'),
+      'HORA': new Date(movement.created_at).toLocaleTimeString('es-ES'),
+      'EQUIPO': movement.equipment?.name || 'N/A',
+      'ACCIÓN': getActionLabel(movement.action),
+      'USUARIO': movement.profiles?.full_name || 'N/A',
+      'MOTIVO': (movement as any).reason || 'N/A',
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 5 },   // N°
+      { wch: 12 },  // FECHA
+      { wch: 10 },  // HORA
+      { wch: 35 },  // EQUIPO
+      { wch: 15 },  // ACCIÓN
+      { wch: 25 },  // USUARIO
+      { wch: 50 },  // MOTIVO
+    ];
+
+    // Style header row
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (!ws[cellAddress]) continue;
+      ws[cellAddress].s = {
+        font: { bold: true },
+        fill: { fgColor: { rgb: "4472C4" } },
+        alignment: { horizontal: "center", vertical: "center" },
+      };
+    }
+
     XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
 
-    // Auto-size columns
-    const colWidths = Object.keys(exportData[0] || {}).map(key => ({
-      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
-    }));
-    ws['!cols'] = colWidths;
-
-    const fileName = `Reporte_Movimientos_${startDate}_${endDate}.xlsx`;
+    const fileName = `Reporte_Movimientos_${startDate.replace(/-/g, '')}_${endDate.replace(/-/g, '')}.xlsx`;
     XLSX.writeFile(wb, fileName);
 
     toast({

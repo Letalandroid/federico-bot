@@ -38,11 +38,11 @@ const menuItems = [
     icon: BarChart3,
     href: '/reports',
   },
-  // {
-  //   title: 'Docentes',
-  //   icon: Users,
-  //   href: '/teachers',
-  // },
+  {
+    title: 'Usuarios',
+    icon: Users,
+    href: '/users',
+  },
   {
     title: 'Chatbot',
     icon: MessageCircle,
