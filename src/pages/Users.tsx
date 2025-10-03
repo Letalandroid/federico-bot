@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,13 +67,7 @@ const Users = () => {
     role: 'tecnico' as 'administrador' | 'tecnico',
   });
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchUsers();
-    }
-  }, [isAdmin]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const { data: profiles, error: profilesError } = await supabase
@@ -88,10 +82,6 @@ const Users = () => {
 
       if (profilesError) throw profilesError;
 
-      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) throw authError;
-
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role');
@@ -99,12 +89,11 @@ const Users = () => {
       if (rolesError) throw rolesError;
 
       const usersWithRoles = profiles?.map(profile => {
-        const authUser = authUsers?.find(u => u.id === profile.user_id);
         const userRoles = rolesData?.filter(r => r.user_id === profile.user_id) || [];
         
         return {
           id: profile.user_id,
-          email: authUser?.email || 'N/A',
+          email: 'Usuario del Sistema', // Simplified to avoid admin permissions
           full_name: profile.full_name,
           created_at: profile.created_at,
           roles: userRoles,
@@ -112,17 +101,24 @@ const Users = () => {
       }) || [];
 
       setUsers(usersWithRoles);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching users:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo cargar la lista de usuarios";
       toast({
         title: "Error",
-        description: error.message || "No se pudo cargar la lista de usuarios",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchUsers();
+    }
+  }, [isAdmin, fetchUsers]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,11 +166,12 @@ const Users = () => {
       setIsModalOpen(false);
       setFormData({ email: '', password: '', full_name: '', role: 'tecnico' });
       fetchUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating user:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo crear el usuario";
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear el usuario",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -187,9 +184,21 @@ const Users = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userToDelete.id);
+      // Delete from user_roles first
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userToDelete.id);
 
-      if (error) throw error;
+      if (roleError) throw roleError;
+
+      // Delete from profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userToDelete.id);
+
+      if (profileError) throw profileError;
 
       toast({
         title: "Éxito",
@@ -199,11 +208,12 @@ const Users = () => {
       setIsDeleteDialogOpen(false);
       setUserToDelete(null);
       fetchUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting user:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo eliminar el usuario";
       toast({
         title: "Error",
-        description: error.message || "No se pudo eliminar el usuario",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

@@ -11,7 +11,7 @@ import Categories from "./pages/Categories";
 import Movements from "./pages/Movements";
 import Reports from "./pages/Reports";
 import EquipmentRegistry from "./pages/EquipmentRegistry";
-import UserManagement from "./pages/UserManagement";
+import Users from "./pages/Users";
 import ChatBot from "./components/Chat/ChatBot";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -34,7 +34,7 @@ const App = () => (
               <Route path="movements" element={<Movements />} />
               <Route path="reports" element={<Reports />} />
               <Route path="equipment-registry" element={<EquipmentRegistry />} />
-              <Route path="users" element={<UserManagement />} />
+              <Route path="users" element={<Users />} />
               <Route path="chat" element={<ChatBot />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             </Route>
