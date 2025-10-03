@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Download, FileSpreadsheet, Package, TrendingDown, Calendar } from 'lucide-react';
+import { Download, FileSpreadsheet, Package, TrendingDown, Calendar, AlertTriangle, Users, BarChart3 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import {
   Table,
@@ -15,6 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import * as XLSX from 'xlsx';
 
 interface LowStockItem {
@@ -42,13 +49,43 @@ interface MovementReport {
   };
 }
 
+interface EquipmentRegistry {
+  id: string;
+  equipment_id: string;
+  reason: string;
+  description: string;
+  date_occurred: string;
+  status: string;
+  equipment: {
+    name: string;
+    brand: string;
+    model: string;
+  };
+  profiles: {
+    full_name: string;
+  };
+}
+
+interface UserReport {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  created_at: string;
+  last_sign_in_at?: string;
+  is_active: boolean;
+}
+
 const Reports = () => {
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [movements, setMovements] = useState<MovementReport[]>([]);
+  const [equipmentRegistries, setEquipmentRegistries] = useState<EquipmentRegistry[]>([]);
+  const [users, setUsers] = useState<UserReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [stockThreshold, setStockThreshold] = useState(50);
+  const [reportType, setReportType] = useState('inventory');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -117,6 +154,71 @@ const Reports = () => {
       toast({
         title: "Error",
         description: "No se pudo cargar el reporte de movimientos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEquipmentRegistries = async () => {
+    if (!startDate || !endDate) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona ambas fechas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('equipment_registry')
+        .select(`
+          *,
+          equipment (
+            name,
+            brand,
+            model
+          ),
+          profiles (
+            full_name
+          )
+        `)
+        .gte('date_occurred', startDate)
+        .lte('date_occurred', endDate)
+        .order('date_occurred', { ascending: false });
+
+      if (error) throw error;
+      setEquipmentRegistries(data || []);
+    } catch (error) {
+      console.error('Error fetching equipment registries:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el reporte de registros de equipos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el reporte de usuarios",
         variant: "destructive",
       });
     } finally {
@@ -199,6 +301,170 @@ const Reports = () => {
     });
   };
 
+  const exportEquipmentRegistriesToExcel = () => {
+    if (equipmentRegistries.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay registros de equipos para exportar en el rango seleccionado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const exportData = equipmentRegistries.map(registry => ({
+      'Fecha': new Date(registry.date_occurred).toLocaleDateString('es-ES'),
+      'Equipo': registry.equipment?.name || 'N/A',
+      'Marca': registry.equipment?.brand || 'N/A',
+      'Modelo': registry.equipment?.model || 'N/A',
+      'Motivo': registry.reason,
+      'Descripción': registry.description,
+      'Estado': registry.status,
+      'Reportado por': registry.profiles?.full_name || 'N/A',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Registros de Equipos');
+
+    // Auto-size columns
+    const colWidths = Object.keys(exportData[0] || {}).map(key => ({
+      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
+    }));
+    ws['!cols'] = colWidths;
+
+    const fileName = `Reporte_Registros_Equipos_${startDate}_${endDate}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    toast({
+      title: "Éxito",
+      description: "Reporte de registros de equipos exportado correctamente",
+    });
+  };
+
+  const exportUsersToExcel = () => {
+    if (users.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay usuarios para exportar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const exportData = users.map(user => ({
+      'Nombre': user.full_name,
+      'Email': user.email,
+      'Rol': user.role,
+      'Estado': user.is_active ? 'Activo' : 'Inactivo',
+      'Fecha Creación': new Date(user.created_at).toLocaleDateString('es-ES'),
+      'Último Acceso': user.last_sign_in_at 
+        ? new Date(user.last_sign_in_at).toLocaleDateString('es-ES')
+        : 'Nunca',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+
+    // Auto-size columns
+    const colWidths = Object.keys(exportData[0] || {}).map(key => ({
+      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
+    }));
+    ws['!cols'] = colWidths;
+
+    const fileName = `Reporte_Usuarios_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    toast({
+      title: "Éxito",
+      description: "Reporte de usuarios exportado correctamente",
+    });
+  };
+
+  const exportComprehensiveReport = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Low Stock Report
+    if (lowStockItems.length > 0) {
+      const lowStockData = lowStockItems.map(item => ({
+        'Nombre': item.name,
+        'Categoría': item.categories?.name,
+        'Marca': item.brand,
+        'Modelo': item.model,
+        'Disponible': item.available_quantity,
+        'Total': item.quantity,
+        'Estado': item.state,
+      }));
+      const ws1 = XLSX.utils.json_to_sheet(lowStockData);
+      ws1['!cols'] = Object.keys(lowStockData[0] || {}).map(key => ({
+        wch: Math.max(key.length, ...lowStockData.map(row => String(row[key as keyof typeof row]).length))
+      }));
+      XLSX.utils.book_append_sheet(wb, ws1, 'Bajo Stock');
+    }
+
+    // Movements Report
+    if (movements.length > 0) {
+      const movementsData = movements.map(movement => ({
+        'Fecha': new Date(movement.created_at).toLocaleDateString('es-ES'),
+        'Hora': new Date(movement.created_at).toLocaleTimeString('es-ES'),
+        'Equipo': movement.equipment?.name || 'N/A',
+        'Acción': movement.action,
+        'Usuario': movement.profiles?.full_name || 'N/A',
+      }));
+      const ws2 = XLSX.utils.json_to_sheet(movementsData);
+      ws2['!cols'] = Object.keys(movementsData[0] || {}).map(key => ({
+        wch: Math.max(key.length, ...movementsData.map(row => String(row[key as keyof typeof row]).length))
+      }));
+      XLSX.utils.book_append_sheet(wb, ws2, 'Movimientos');
+    }
+
+    // Equipment Registries Report
+    if (equipmentRegistries.length > 0) {
+      const registriesData = equipmentRegistries.map(registry => ({
+        'Fecha': new Date(registry.date_occurred).toLocaleDateString('es-ES'),
+        'Equipo': registry.equipment?.name || 'N/A',
+        'Marca': registry.equipment?.brand || 'N/A',
+        'Modelo': registry.equipment?.model || 'N/A',
+        'Motivo': registry.reason,
+        'Descripción': registry.description,
+        'Estado': registry.status,
+        'Reportado por': registry.profiles?.full_name || 'N/A',
+      }));
+      const ws3 = XLSX.utils.json_to_sheet(registriesData);
+      ws3['!cols'] = Object.keys(registriesData[0] || {}).map(key => ({
+        wch: Math.max(key.length, ...registriesData.map(row => String(row[key as keyof typeof row]).length))
+      }));
+      XLSX.utils.book_append_sheet(wb, ws3, 'Registros de Equipos');
+    }
+
+    // Users Report
+    if (users.length > 0) {
+      const usersData = users.map(user => ({
+        'Nombre': user.full_name,
+        'Email': user.email,
+        'Rol': user.role,
+        'Estado': user.is_active ? 'Activo' : 'Inactivo',
+        'Fecha Creación': new Date(user.created_at).toLocaleDateString('es-ES'),
+        'Último Acceso': user.last_sign_in_at 
+          ? new Date(user.last_sign_in_at).toLocaleDateString('es-ES')
+          : 'Nunca',
+      }));
+      const ws4 = XLSX.utils.json_to_sheet(usersData);
+      ws4['!cols'] = Object.keys(usersData[0] || {}).map(key => ({
+        wch: Math.max(key.length, ...usersData.map(row => String(row[key as keyof typeof row]).length))
+      }));
+      XLSX.utils.book_append_sheet(wb, ws4, 'Usuarios');
+    }
+
+    const fileName = `Reporte_Completo_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    toast({
+      title: "Éxito",
+      description: "Reporte completo exportado correctamente",
+    });
+  };
+
   const getStateColor = (state: string) => {
     const colors = {
       disponible: 'bg-success text-success-foreground',
@@ -232,12 +498,51 @@ const Reports = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Reportes</h1>
-        <p className="text-muted-foreground">
-          Genera y exporta reportes del inventario
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Reportes</h1>
+          <p className="text-muted-foreground">
+            Genera y exporta reportes del sistema
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={fetchUsers}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Users className="h-4 w-4" />
+            Cargar Usuarios
+          </Button>
+          <Button
+            onClick={exportComprehensiveReport}
+            className="flex items-center gap-2"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Reporte Completo
+          </Button>
+        </div>
       </div>
+
+      {/* Report Type Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Seleccionar Tipo de Reporte</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={reportType} onValueChange={setReportType}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Tipo de reporte" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inventory">Inventario</SelectItem>
+              <SelectItem value="movements">Movimientos</SelectItem>
+              <SelectItem value="equipment_registry">Registros de Equipos</SelectItem>
+              <SelectItem value="users">Usuarios</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Low Stock Report */}
       <Card>
@@ -426,6 +731,193 @@ const Reports = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Equipment Registry Report */}
+      {reportType === 'equipment_registry' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Registros de Equipos
+            </CardTitle>
+            <CardDescription>
+              Registros de malogros, bajas y mantenimientos de equipos
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div>
+                <Label htmlFor="startDateRegistry">Fecha Inicio</Label>
+                <Input
+                  id="startDateRegistry"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDateRegistry">Fecha Fin</Label>
+                <Input
+                  id="endDateRegistry"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={fetchEquipmentRegistries}
+                  disabled={loading}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Consultar
+                </Button>
+                <Button
+                  onClick={exportEquipmentRegistriesToExcel}
+                  variant="outline"
+                  disabled={equipmentRegistries.length === 0}
+                  className="flex items-center gap-2"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Exportar
+                </Button>
+              </div>
+            </div>
+
+            {equipmentRegistries.length > 0 && (
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Equipo</TableHead>
+                      <TableHead>Motivo</TableHead>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Reportado por</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {equipmentRegistries.slice(0, 10).map((registry) => (
+                      <TableRow key={registry.id}>
+                        <TableCell>
+                          <div className="text-sm">
+                            {new Date(registry.date_occurred).toLocaleDateString('es-ES')}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{registry.equipment?.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {registry.equipment?.brand} - {registry.equipment?.model}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {registry.reason}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-xs truncate">
+                            {registry.description}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {registry.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {registry.profiles?.full_name || 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {equipmentRegistries.length > 10 && (
+                  <div className="text-center py-2 text-sm text-muted-foreground border-t">
+                    Mostrando 10 de {equipmentRegistries.length} registros. Exporta para ver todos.
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Users Report */}
+      {reportType === 'users' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Reporte de Usuarios
+            </CardTitle>
+            <CardDescription>
+              Lista de usuarios del sistema
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                onClick={exportUsersToExcel}
+                variant="outline"
+                disabled={users.length === 0}
+                className="flex items-center gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Exportar a Excel
+              </Button>
+            </div>
+
+            {users.length > 0 && (
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Rol</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Fecha Creación</TableHead>
+                      <TableHead>Último Acceso</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.full_name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.is_active ? "default" : "secondary"}>
+                            {user.is_active ? 'Activo' : 'Inactivo'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(user.created_at).toLocaleDateString('es-ES')}
+                        </TableCell>
+                        <TableCell>
+                          {user.last_sign_in_at 
+                            ? new Date(user.last_sign_in_at).toLocaleDateString('es-ES')
+                            : 'Nunca'
+                          }
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
