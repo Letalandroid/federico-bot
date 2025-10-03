@@ -55,18 +55,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      // Primero intentar obtener el perfil existente
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      if (data) {
+        setUserProfile(data);
         return;
       }
 
-      setUserProfile(data);
+      // Si no existe (error PGRST116), crear uno nuevo
+      if (error && error.code === 'PGRST116') {
+        console.log('Profile not found, creating default profile for user:', userId);
+        
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: userId,
+              user_id: userId,
+              full_name: userData.user.email?.split('@')[0] || 'Usuario',
+              role: 'tecnico',
+              is_active: true
+            });
+
+          if (!insertError) {
+            // Recargar el perfil después de crearlo
+            const { data: newProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .single();
+
+            if (newProfile) {
+              setUserProfile(newProfile);
+            }
+          } else if (insertError.code === '23505') {
+            // Perfil ya existe, obtenerlo usando user_id
+            console.log('Profile already exists, fetching by user_id');
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', userId)
+              .single();
+            
+            if (existingProfile) {
+              setUserProfile(existingProfile);
+            }
+          } else {
+            console.error('Error creating profile:', insertError);
+          }
+        }
+      } else {
+        console.error('Error fetching profile:', error);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }

@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Filter, AlertTriangle, Trash2, Wrench, Calendar } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Table,
@@ -72,7 +72,7 @@ const EquipmentRegistry = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [registryToDelete, setRegistryToDelete] = useState<EquipmentRegistry | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const [formData, setFormData] = useState({
     equipment_id: '',
@@ -135,14 +135,14 @@ const EquipmentRegistry = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !userProfile) return;
 
     try {
       const { error } = await supabase
         .from('equipment_registry')
         .insert({
           ...formData,
-          reported_by: user.id,
+          reported_by: userProfile.id,
         });
 
       if (error) throw error;
@@ -156,7 +156,7 @@ const EquipmentRegistry = () => {
           description: formData.description,
           status: formData.status,
         },
-        changed_by: user.id,
+        changed_by: userProfile.id,
       });
 
       toast({
@@ -184,7 +184,7 @@ const EquipmentRegistry = () => {
   };
 
   const handleDelete = async () => {
-    if (!registryToDelete || !user) return;
+    if (!registryToDelete || !userProfile) return;
 
     try {
       const { error } = await supabase
