@@ -27,17 +27,30 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 -- Create equipment_history table if it doesn't exist
 CREATE TABLE IF NOT EXISTS equipment_history (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  equipment_id UUID REFERENCES equipment(id) ON DELETE CASCADE,
+  equipment_id UUID,
   action TEXT NOT NULL,
   old_values JSONB,
   new_values JSONB,
   change_details JSONB,
-  changed_by UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  changed_by UUID NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Add change_details column if it doesn't exist
 ALTER TABLE equipment_history ADD COLUMN IF NOT EXISTS change_details JSONB;
+
+-- Drop existing foreign key constraints if they exist
+ALTER TABLE equipment_history DROP CONSTRAINT IF EXISTS equipment_history_equipment_id_fkey;
+ALTER TABLE equipment_history DROP CONSTRAINT IF EXISTS equipment_history_changed_by_fkey;
+
+-- Add foreign key constraints (equipment_id can be NULL for user-related actions)
+ALTER TABLE equipment_history 
+ADD CONSTRAINT equipment_history_equipment_id_fkey 
+FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE SET NULL;
+
+ALTER TABLE equipment_history 
+ADD CONSTRAINT equipment_history_changed_by_fkey 
+FOREIGN KEY (changed_by) REFERENCES profiles(id) ON DELETE CASCADE;
 
 -- Add indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_equipment_registry_equipment_id ON equipment_registry(equipment_id);

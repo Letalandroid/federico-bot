@@ -25,16 +25,16 @@ interface Movement {
   id: string;
   action: string;
   created_at: string;
-  equipment_id: string;
+  equipment_id: string | null;
   changed_by: string;
   old_values?: any;
   new_values?: any;
   profiles: {
     full_name: string;
-  };
+  } | null;
   equipment: {
     name: string;
-  };
+  } | null;
 }
 
 const Movements = () => {
@@ -58,7 +58,7 @@ const Movements = () => {
           profiles:profiles!equipment_history_changed_by_fkey (
             full_name
           ),
-          equipment (
+          equipment:equipment!equipment_history_equipment_id_fkey (
             name
           )
         `)
@@ -83,6 +83,10 @@ const Movements = () => {
       create: 'Creación',
       update: 'Actualización',
       delete: 'Eliminación',
+      user_create: 'Usuario Creado',
+      user_delete: 'Usuario Eliminado',
+      user_status_change: 'Estado Usuario',
+      registry: 'Registro Equipo',
     };
     return labels[action as keyof typeof labels] || action;
   };
@@ -92,6 +96,10 @@ const Movements = () => {
       create: 'bg-success text-success-foreground',
       update: 'bg-warning text-warning-foreground',
       delete: 'bg-destructive text-destructive-foreground',
+      user_create: 'bg-blue-500 text-white',
+      user_delete: 'bg-red-500 text-white',
+      user_status_change: 'bg-purple-500 text-white',
+      registry: 'bg-orange-500 text-white',
     };
     return colors[action as keyof typeof colors] || 'bg-secondary';
   };
@@ -103,6 +111,22 @@ const Movements = () => {
     
     if (movement.action === 'delete') {
       return 'Producto eliminado';
+    }
+
+    if (movement.action === 'user_create') {
+      return 'Usuario creado';
+    }
+
+    if (movement.action === 'user_delete') {
+      return 'Usuario eliminado';
+    }
+
+    if (movement.action === 'user_status_change') {
+      return 'Estado de usuario cambiado';
+    }
+
+    if (movement.action === 'registry') {
+      return 'Registro de equipo creado';
     }
 
     if (movement.action === 'update' && movement.old_values && movement.new_values) {
@@ -119,6 +143,9 @@ const Movements = () => {
             brand: 'Marca',
             model: 'Modelo',
             description: 'Descripción',
+            full_name: 'Nombre completo',
+            role: 'Rol',
+            is_active: 'Estado activo',
           };
           
           const fieldName = fieldNames[key] || key;
@@ -134,7 +161,9 @@ const Movements = () => {
 
   const filteredMovements = movements.filter(movement => {
     const matchesSearch = movement.equipment?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         movement.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         movement.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (movement.action === 'user_create' || movement.action === 'user_delete' || movement.action === 'user_status_change') && 
+                         'usuario'.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesAction = actionFilter === 'all' || movement.action === actionFilter;
     const matchesDate = !dateFilter || movement.created_at.startsWith(dateFilter);
     return matchesSearch && matchesAction && matchesDate;
@@ -238,7 +267,8 @@ const Movements = () => {
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">
-                        {movement.equipment?.name || 'Equipo eliminado'}
+                        {movement.equipment?.name || 
+                         (movement.action.includes('user') ? 'Gestión de Usuario' : 'Equipo eliminado')}
                       </span>
                     </div>
                   </TableCell>

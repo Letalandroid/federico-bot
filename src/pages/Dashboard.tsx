@@ -52,7 +52,15 @@ const Dashboard = () => {
       // Fetch movements stats
       const { data: movements } = await supabase
         .from('equipment_history')
-        .select('*')
+        .select(`
+          *,
+          equipment:equipment!equipment_history_equipment_id_fkey (
+            name
+          ),
+          profiles:profiles!equipment_history_changed_by_fkey (
+            full_name
+          )
+        `)
         .order('created_at', { ascending: false })
         .limit(5);
 

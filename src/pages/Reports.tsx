@@ -139,10 +139,10 @@ const Reports = () => {
         .from('equipment_history')
         .select(`
           *,
-          equipment (
+          equipment:equipment!equipment_history_equipment_id_fkey (
             name
           ),
-          profiles (
+          profiles:profiles!equipment_history_changed_by_fkey (
             full_name
           )
         `)
