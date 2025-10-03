@@ -45,7 +45,15 @@ interface MovementReport {
   created_at: string;
   reason: string | null;
   equipment: {
+    id: string;
     name: string;
+    brand: string;
+    model: string;
+    serial_number: string;
+    description: string;
+    state: string;
+    location: string | null;
+    color: string | null;
   } | null;
   profiles: {
     full_name: string;
@@ -140,7 +148,15 @@ const Reports = () => {
         .select(`
           *,
           equipment:equipment!equipment_history_equipment_id_fkey (
-            name
+            id,
+            name,
+            brand,
+            model,
+            serial_number,
+            description,
+            state,
+            location,
+            color
           ),
           profiles:profiles!equipment_history_changed_by_fkey (
             full_name
@@ -303,13 +319,14 @@ const Reports = () => {
     }
 
     const exportData = movements.map((movement, index) => ({
-      'N°': index + 1,
-      'FECHA': new Date(movement.created_at).toLocaleDateString('es-ES'),
-      'HORA': new Date(movement.created_at).toLocaleTimeString('es-ES'),
-      'EQUIPO': movement.equipment?.name || 'N/A',
-      'ACCIÓN': getActionLabel(movement.action),
-      'USUARIO': movement.profiles?.full_name || 'N/A',
-      'MOTIVO': (movement as any).reason || 'N/A',
+      'N° DE ORDEN': index + 1,
+      'CÓDIGO PATRIMONIAL': movement.equipment?.serial_number || 'N/A',
+      'DENOMINACIÓN': movement.equipment?.name || 'N/A',
+      'UBICACIÓN': movement.equipment?.location || 'N/A',
+      'COLOR': movement.equipment?.color || 'N/A',
+      'MARCA': movement.equipment?.brand || 'N/A',
+      'ESTADO': movement.equipment?.state || 'N/A',
+      'OBSERVACIÓN': movement.equipment?.description || 'N/A',
     }));
 
     const wb = XLSX.utils.book_new();
@@ -317,13 +334,14 @@ const Reports = () => {
 
     // Set column widths
     ws['!cols'] = [
-      { wch: 5 },   // N°
-      { wch: 12 },  // FECHA
-      { wch: 10 },  // HORA
-      { wch: 35 },  // EQUIPO
-      { wch: 15 },  // ACCIÓN
-      { wch: 25 },  // USUARIO
-      { wch: 50 },  // MOTIVO
+      { wch: 12 },  // N° DE ORDEN
+      { wch: 18 },  // CÓDIGO PATRIMONIAL
+      { wch: 35 },  // DENOMINACIÓN
+      { wch: 20 },  // UBICACIÓN
+      { wch: 15 },  // COLOR
+      { wch: 20 },  // MARCA
+      { wch: 15 },  // ESTADO
+      { wch: 40 },  // OBSERVACIÓN
     ];
 
     // Style header row
@@ -738,33 +756,44 @@ const Reports = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Equipo</TableHead>
-                    <TableHead>Acción</TableHead>
-                    <TableHead>Usuario</TableHead>
+                    <TableHead>N° Orden</TableHead>
+                    <TableHead>Código Patrimonial</TableHead>
+                    <TableHead>Denominación</TableHead>
+                    <TableHead>Ubicación</TableHead>
+                    <TableHead>Color</TableHead>
+                    <TableHead>Marca</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Observación</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {movements.slice(0, 10).map((movement) => (
+                  {movements.slice(0, 10).map((movement, index) => (
                     <TableRow key={movement.id}>
+                      <TableCell className="font-medium">
+                        {index + 1}
+                      </TableCell>
                       <TableCell>
-                        <div className="text-sm">
-                          {new Date(movement.created_at).toLocaleDateString('es-ES')}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(movement.created_at).toLocaleTimeString('es-ES')}
-                        </div>
+                        {movement.equipment?.serial_number || 'N/A'}
                       </TableCell>
                       <TableCell>
                         {movement.equipment?.name || 'N/A'}
                       </TableCell>
                       <TableCell>
+                        {movement.equipment?.location || 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {movement.equipment?.color || 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {movement.equipment?.brand || 'N/A'}
+                      </TableCell>
+                      <TableCell>
                         <Badge variant="outline">
-                          {getActionLabel(movement.action)}
+                          {movement.equipment?.state || 'N/A'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {movement.profiles?.full_name || 'N/A'}
+                        {movement.equipment?.description || 'N/A'}
                       </TableCell>
                     </TableRow>
                   ))}
