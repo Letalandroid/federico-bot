@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -320,14 +321,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </div>
             <div>
               <Label htmlFor="quantity">Cantidad *</Label>
-              <Input
+              <NumberInput
                 id="quantity"
-                type="number"
-                min="1"
                 value={formData.quantity}
-                onChange={(e) =>
-                  handleInputChange("quantity", parseInt(e.target.value) || 1)
+                onChange={(value) =>
+                  handleInputChange("quantity", parseInt(value) || 1)
                 }
+                allowEmpty={false}
                 required
               />
             </div>

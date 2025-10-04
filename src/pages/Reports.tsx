@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -508,13 +509,12 @@ const Reports = () => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Label htmlFor="threshold">Umbral:</Label>
-              <Input
+              <NumberInput
                 id="threshold"
-                type="number"
                 value={stockThreshold}
-                onChange={(e) => setStockThreshold(parseInt(e.target.value) || 50)}
+                onChange={(value) => setStockThreshold(parseInt(value))}
                 className="w-20"
-                min="1"
+                allowEmpty={false}
               />
             </div>
             <Button

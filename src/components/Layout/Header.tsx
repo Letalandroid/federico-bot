@@ -13,7 +13,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { LogOut, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import NotificationBell from './NotificationBell';
 
 export const Header = () => {
   const { user, userProfile, signOut } = useAuth();
@@ -53,9 +52,6 @@ export const Header = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Notifications */}
-          <NotificationBell />
-
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

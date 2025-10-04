@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -397,12 +398,11 @@ const Classrooms = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="capacity">Capacidad</Label>
-              <Input
+              <NumberInput
                 id="capacity"
-                type="number"
-                min="1"
                 value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, capacity: value })}
+                allowEmpty={true}
               />
             </div>
             <div className="space-y-2">
@@ -460,12 +460,11 @@ const Classrooms = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_capacity">Capacidad</Label>
-              <Input
+              <NumberInput
                 id="edit_capacity"
-                type="number"
-                min="1"
                 value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, capacity: value })}
+                allowEmpty={true}
               />
             </div>
             <div className="space-y-2">

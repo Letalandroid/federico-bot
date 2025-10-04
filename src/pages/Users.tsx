@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRole } from '@/hooks/useRole';
-import { Plus, Trash2, UserPlus, Shield, Loader2, GraduationCap } from 'lucide-react';
+import { Plus, Trash2, UserPlus, Shield, Loader2, GraduationCap, Edit, MoreHorizontal } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -41,6 +41,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Navigate } from 'react-router-dom';
 
 interface UserData {
@@ -75,6 +81,8 @@ const Users = () => {
   });
 
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [isEditTeacherModalOpen, setIsEditTeacherModalOpen] = useState(false);
+  const [teacherToEdit, setTeacherToEdit] = useState<{id: string; full_name: string; dni: string; email?: string; phone?: string} | null>(null);
   const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string}>>([]);
 
   const fetchUsers = useCallback(async () => {
@@ -257,6 +265,95 @@ const Users = () => {
     }
   };
 
+  const handleEditTeacher = (teacher: {id: string; full_name: string; dni: string; email?: string; phone?: string}) => {
+    setTeacherToEdit(teacher);
+    setTeacherFormData({
+      full_name: teacher.full_name,
+      dni: teacher.dni,
+      email: teacher.email || '',
+      phone: teacher.phone || '',
+    });
+    setIsEditTeacherModalOpen(true);
+  };
+
+  const handleUpdateTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teacherToEdit) return;
+
+    if (!teacherFormData.full_name || !teacherFormData.dni) {
+      toast({
+        title: "Error",
+        description: "Nombre completo y DNI son obligatorios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('teachers')
+        .update({
+          full_name: teacherFormData.full_name,
+          dni: teacherFormData.dni,
+          email: teacherFormData.email || null,
+          phone: teacherFormData.phone || null,
+        })
+        .eq('id', teacherToEdit.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Docente actualizado correctamente",
+      });
+
+      setIsEditTeacherModalOpen(false);
+      setTeacherToEdit(null);
+      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '' });
+      fetchTeachers();
+    } catch (error: unknown) {
+      console.error('Error updating teacher:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo actualizar el docente";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTeacher = async (teacherId: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('teachers')
+        .delete()
+        .eq('id', teacherId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Docente eliminado correctamente",
+      });
+
+      fetchTeachers();
+    } catch (error: unknown) {
+      console.error('Error deleting teacher:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo eliminar el docente";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
 
@@ -423,6 +520,7 @@ const Users = () => {
                     <TableHead>DNI</TableHead>
                     <TableHead>Correo Electrónico</TableHead>
                     <TableHead>Teléfono</TableHead>
+                    <TableHead className="w-[50px]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -434,6 +532,28 @@ const Users = () => {
                       <TableCell>{teacher.dni}</TableCell>
                       <TableCell>{teacher.email || 'N/A'}</TableCell>
                       <TableCell>{teacher.phone || 'N/A'}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditTeacher(teacher)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteTeacher(teacher.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -599,6 +719,72 @@ const Users = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal para editar docente */}
+      <Dialog open={isEditTeacherModalOpen} onOpenChange={setIsEditTeacherModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Docente</DialogTitle>
+            <DialogDescription>
+              Actualiza la información del docente
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateTeacher} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_full_name">Nombre Completo *</Label>
+              <Input
+                id="edit_full_name"
+                value={teacherFormData.full_name}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, full_name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_dni">DNI *</Label>
+              <Input
+                id="edit_dni"
+                value={teacherFormData.dni}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, dni: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_email">Correo Electrónico</Label>
+              <Input
+                id="edit_email"
+                type="email"
+                value={teacherFormData.email}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_phone">Teléfono</Label>
+              <Input
+                id="edit_phone"
+                value={teacherFormData.phone}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, phone: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditTeacherModalOpen(false);
+                  setTeacherToEdit(null);
+                  setTeacherFormData({ full_name: '', dni: '', email: '', phone: '' });
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Actualizar Docente
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
