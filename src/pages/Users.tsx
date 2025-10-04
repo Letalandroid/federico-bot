@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRole } from '@/hooks/useRole';
-import { Plus, Trash2, UserPlus, Shield, Loader2, GraduationCap } from 'lucide-react';
+import { Plus, Trash2, UserPlus, Shield, Loader2, GraduationCap, Edit, MoreHorizontal } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -41,6 +41,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Navigate } from 'react-router-dom';
 
 interface UserData {
@@ -75,7 +81,9 @@ const Users = () => {
   });
 
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
-  const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string}>>([]);
+  const [isEditTeacherModalOpen, setIsEditTeacherModalOpen] = useState(false);
+  const [teacherToEdit, setTeacherToEdit] = useState<{id: string; full_name: string; dni: string; email?: string; phone?: string} | null>(null);
+  const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string; has_movements?: boolean}>>([]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -135,11 +143,29 @@ const Users = () => {
     try {
       const { data, error } = await supabase
         .from('teachers')
-        .select('id, full_name, dni, email, phone')
+        .select(`
+          id, 
+          full_name, 
+          dni, 
+          email, 
+          phone,
+          movements:movements(id)
+        `)
         .order('full_name');
 
       if (error) throw error;
-      setTeachers(data || []);
+
+      // Procesar los datos para incluir información sobre movimientos
+      const teachersWithMovements = (data || []).map(teacher => ({
+        id: teacher.id,
+        full_name: teacher.full_name,
+        dni: teacher.dni,
+        email: teacher.email,
+        phone: teacher.phone,
+        has_movements: teacher.movements && teacher.movements.length > 0
+      }));
+
+      setTeachers(teachersWithMovements);
     } catch (error) {
       console.error('Error fetching teachers:', error);
     }
@@ -247,6 +273,114 @@ const Users = () => {
     } catch (error: unknown) {
       console.error('Error creating teacher:', error);
       const errorMessage = error instanceof Error ? error.message : "No se pudo crear el docente";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditTeacher = (teacher: {id: string; full_name: string; dni: string; email?: string; phone?: string}) => {
+    setTeacherToEdit(teacher);
+    setTeacherFormData({
+      full_name: teacher.full_name,
+      dni: teacher.dni,
+      email: teacher.email || '',
+      phone: teacher.phone || '',
+    });
+    setIsEditTeacherModalOpen(true);
+  };
+
+  const handleUpdateTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teacherToEdit) return;
+
+    if (!teacherFormData.full_name || !teacherFormData.dni) {
+      toast({
+        title: "Error",
+        description: "Nombre completo y DNI son obligatorios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('teachers')
+        .update({
+          full_name: teacherFormData.full_name,
+          dni: teacherFormData.dni,
+          email: teacherFormData.email || null,
+          phone: teacherFormData.phone || null,
+        })
+        .eq('id', teacherToEdit.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Docente actualizado correctamente",
+      });
+
+      setIsEditTeacherModalOpen(false);
+      setTeacherToEdit(null);
+      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '' });
+      fetchTeachers();
+    } catch (error: unknown) {
+      console.error('Error updating teacher:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo actualizar el docente";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTeacher = async (teacherId: string) => {
+    setLoading(true);
+    try {
+      // Primero verificar si el docente tiene movimientos asociados
+      const { data: movements, error: movementsError } = await supabase
+        .from('movements')
+        .select('id')
+        .eq('teacher_id', teacherId)
+        .limit(1);
+
+      if (movementsError) throw movementsError;
+
+      if (movements && movements.length > 0) {
+        toast({
+          title: "No se puede eliminar",
+          description: "Este docente tiene préstamos asociados. No se puede eliminar.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Si no hay movimientos, proceder con la eliminación
+      const { error } = await supabase
+        .from('teachers')
+        .delete()
+        .eq('id', teacherId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Docente eliminado correctamente",
+      });
+
+      fetchTeachers();
+    } catch (error: unknown) {
+      console.error('Error deleting teacher:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo eliminar el docente";
       toast({
         title: "Error",
         description: errorMessage,
@@ -423,17 +557,48 @@ const Users = () => {
                     <TableHead>DNI</TableHead>
                     <TableHead>Correo Electrónico</TableHead>
                     <TableHead>Teléfono</TableHead>
+                    <TableHead className="w-[50px]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {teachers.map((teacher) => (
                     <TableRow key={teacher.id}>
                       <TableCell className="font-medium">
-                        {teacher.full_name}
+                        <div className="flex items-center gap-2">
+                          {teacher.full_name}
+                          {teacher.has_movements && (
+                            <Badge variant="secondary" className="text-xs">
+                              Con préstamos
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{teacher.dni}</TableCell>
                       <TableCell>{teacher.email || 'N/A'}</TableCell>
                       <TableCell>{teacher.phone || 'N/A'}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditTeacher(teacher)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteTeacher(teacher.id)}
+                              className={teacher.has_movements ? "text-muted-foreground cursor-not-allowed" : "text-destructive"}
+                              disabled={teacher.has_movements}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {teacher.has_movements ? "No se puede eliminar" : "Eliminar"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -599,6 +764,72 @@ const Users = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal para editar docente */}
+      <Dialog open={isEditTeacherModalOpen} onOpenChange={setIsEditTeacherModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Docente</DialogTitle>
+            <DialogDescription>
+              Actualiza la información del docente
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateTeacher} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_full_name">Nombre Completo *</Label>
+              <Input
+                id="edit_full_name"
+                value={teacherFormData.full_name}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, full_name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_dni">DNI *</Label>
+              <Input
+                id="edit_dni"
+                value={teacherFormData.dni}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, dni: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_email">Correo Electrónico</Label>
+              <Input
+                id="edit_email"
+                type="email"
+                value={teacherFormData.email}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_phone">Teléfono</Label>
+              <Input
+                id="edit_phone"
+                value={teacherFormData.phone}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, phone: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditTeacherModalOpen(false);
+                  setTeacherToEdit(null);
+                  setTeacherFormData({ full_name: '', dni: '', email: '', phone: '' });
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Actualizar Docente
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

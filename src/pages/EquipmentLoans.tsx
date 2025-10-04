@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Calendar, User, Package, ArrowLeft, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { useNotifications } from '@/hooks/useNotifications';
 import {
   Table,
   TableBody,
@@ -92,7 +92,6 @@ const EquipmentLoans = () => {
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
-  const { notifyEquipmentLoan } = useNotifications();
 
   const [formData, setFormData] = useState({
     equipment_id: '',
@@ -289,16 +288,6 @@ const EquipmentLoans = () => {
         description: "Préstamo registrado correctamente",
       });
 
-      // Enviar notificación
-      const selectedTeacher = teachers.find(t => t.id === formData.teacher_id);
-      const selectedEquipment = equipment.find(e => e.id === formData.equipment_id);
-      if (selectedTeacher && selectedEquipment) {
-        await notifyEquipmentLoan(
-          selectedEquipment.name,
-          selectedTeacher.full_name,
-          formData.movement_type === 'asignacion' ? 'loan' : 'return'
-        );
-      }
 
       fetchLoans();
       fetchEquipment();
@@ -374,14 +363,6 @@ const EquipmentLoans = () => {
         description: "Devolución registrada correctamente",
       });
 
-      // Enviar notificación
-      if (loanToReturn.teachers && loanToReturn.equipment) {
-        await notifyEquipmentLoan(
-          loanToReturn.equipment.name,
-          loanToReturn.teachers.full_name,
-          'return'
-        );
-      }
 
       fetchLoans();
       fetchEquipment();
@@ -735,12 +716,11 @@ const EquipmentLoans = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="quantity">Cantidad *</Label>
-                <Input
+                <NumberInput
                   id="quantity"
-                  type="number"
-                  min="1"
                   value={formData.quantity}
-                  onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, quantity: parseInt(value) || 1 }))}
+                  allowEmpty={false}
                   required
                 />
               </div>
