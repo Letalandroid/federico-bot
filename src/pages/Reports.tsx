@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,15 +79,11 @@ const Reports = () => {
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [stockThreshold, setStockThreshold] = useState(50);
+  const [stockThreshold, setStockThreshold] = useState('10');
   const [reportType, setReportType] = useState('inventory');
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchLowStockItems();
-  }, [stockThreshold]);
-
-  const fetchLowStockItems = async () => {
+  const fetchLowStockItems = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -113,7 +109,12 @@ const Reports = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [stockThreshold, toast]);
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    fetchLowStockItems();
+  }, [fetchLowStockItems]);
 
   const fetchMovements = async () => {
     if (!startDate || !endDate) {
@@ -129,29 +130,40 @@ const Reports = () => {
     try {
       const { data, error } = await supabase
         .from('equipment_history')
-        .select(`
-          *,
-          equipment:equipment!equipment_history_equipment_id_fkey (
-            id,
-            name,
-            brand,
-            model,
-            serial_number,
-            description,
-            state,
-            location,
-            color
-          ),
-          profiles:profiles!equipment_history_changed_by_fkey (
-            full_name
-          )
-        `)
+        .select('*')
         .gte('created_at', startDate)
         .lte('created_at', endDate + 'T23:59:59')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMovements(data || []);
+
+      // Transformar los datos para que coincidan con MovementReport
+      const transformedMovements = (data || []).map(movement => ({
+        id: movement.id,
+        action: movement.action,
+        created_at: movement.created_at,
+        reason: movement.reason,
+        changed_by: movement.changed_by,
+        equipment_id: movement.equipment_id,
+        new_values: movement.new_values,
+        old_values: movement.old_values,
+        equipment: {
+          id: movement.equipment_id || '',
+          name: 'Equipo',
+          brand: '',
+          model: '',
+          serial_number: '',
+          description: '',
+          state: '',
+          location: '',
+          color: ''
+        },
+        profiles: {
+          full_name: 'Usuario'
+        }
+      }));
+
+      setMovements(transformedMovements);
     } catch (error) {
       console.error('Error fetching movements:', error);
       toast({
@@ -174,7 +186,18 @@ const Reports = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setUsers(data || []);
+
+      // Transformar los datos para que coincidan con UserReport
+      const transformedUsers = (data || []).map(user => ({
+        id: user.id,
+        full_name: user.full_name || '',
+        email: (user as { email?: string }).email || '',
+        role: 'tecnico', // Valor por defecto
+        created_at: user.created_at,
+        is_active: true // Valor por defecto
+      }));
+
+      setUsers(transformedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -512,15 +535,27 @@ const Reports = () => {
               <NumberInput
                 id="threshold"
                 value={stockThreshold}
-                onChange={(value) => setStockThreshold(parseInt(value))}
+                onChange={(value) => setStockThreshold(value)}
+                onEnter={fetchLowStockItems}
                 className="w-20"
-                allowEmpty={false}
+                allowEmpty={true}
+                min={1}
+                placeholder="Umbral"
               />
+              <Button
+                onClick={fetchLowStockItems}
+                variant="outline"
+                size="sm"
+                disabled={!stockThreshold || loading}
+              >
+                Buscar
+              </Button>
             </div>
             <Button
               onClick={exportLowStockToExcel}
               variant="outline"
               className="flex items-center gap-2"
+              disabled={lowStockItems.length === 0}
             >
               <FileSpreadsheet className="h-4 w-4" />
               Exportar a Excel

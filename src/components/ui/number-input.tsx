@@ -5,11 +5,14 @@ import { cn } from '@/lib/utils';
 interface NumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
   value: string | number;
   onChange: (value: string) => void;
+  onEnter?: () => void;
   allowEmpty?: boolean;
+  min?: number;
+  max?: number;
 }
 
 export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
-  ({ className, value, onChange, allowEmpty = true, ...props }, ref) => {
+  ({ className, value, onChange, onEnter, allowEmpty = true, min, max, ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
       
@@ -22,6 +25,13 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       // Verificar si es un número válido
       const numericValue = parseFloat(inputValue);
       if (!isNaN(numericValue) && isFinite(numericValue)) {
+        // Validar min/max si están definidos
+        if (min !== undefined && numericValue < min) {
+          return; // No actualizar si está por debajo del mínimo
+        }
+        if (max !== undefined && numericValue > max) {
+          return; // No actualizar si está por encima del máximo
+        }
         onChange(inputValue);
       } else if (inputValue === '') {
         // Permitir borrar completamente
@@ -31,9 +41,18 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      // Manejar Enter
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (onEnter) {
+          onEnter();
+        }
+        return;
+      }
+      
       // Permitir teclas de navegación y control
       if (
-        ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) ||
+        ['Backspace', 'Delete', 'Tab', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) ||
         (e.ctrlKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) ||
         (e.metaKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase()))
       ) {
