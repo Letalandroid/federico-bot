@@ -78,12 +78,13 @@ const Users = () => {
     dni: '',
     email: '',
     phone: '',
+    status: 'activo' as 'activo' | 'baja',
   });
 
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [isEditTeacherModalOpen, setIsEditTeacherModalOpen] = useState(false);
-  const [teacherToEdit, setTeacherToEdit] = useState<{id: string; full_name: string; dni: string; email?: string; phone?: string} | null>(null);
-  const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string; has_movements?: boolean}>>([]);
+  const [teacherToEdit, setTeacherToEdit] = useState<{id: string; full_name: string; dni: string; email?: string; phone?: string; status: 'activo' | 'baja'} | null>(null);
+  const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string; status: 'activo' | 'baja'; has_movements?: boolean}>>([]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -149,6 +150,7 @@ const Users = () => {
           dni, 
           email, 
           phone,
+          status,
           movements:movements(id)
         `)
         .order('full_name');
@@ -162,6 +164,7 @@ const Users = () => {
         dni: teacher.dni,
         email: teacher.email,
         phone: teacher.phone,
+        status: teacher.status || 'activo',
         has_movements: teacher.movements && teacher.movements.length > 0
       }));
 
@@ -258,6 +261,7 @@ const Users = () => {
           dni: teacherFormData.dni,
           email: teacherFormData.email || null,
           phone: teacherFormData.phone || null,
+          status: teacherFormData.status,
         });
 
       if (error) throw error;
@@ -268,7 +272,7 @@ const Users = () => {
       });
 
       setIsTeacherModalOpen(false);
-      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '' });
+      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '', status: 'activo' });
       fetchTeachers();
     } catch (error: unknown) {
       console.error('Error creating teacher:', error);
@@ -283,13 +287,14 @@ const Users = () => {
     }
   };
 
-  const handleEditTeacher = (teacher: {id: string; full_name: string; dni: string; email?: string; phone?: string}) => {
+  const handleEditTeacher = (teacher: {id: string; full_name: string; dni: string; email?: string; phone?: string; status: 'activo' | 'baja'}) => {
     setTeacherToEdit(teacher);
     setTeacherFormData({
       full_name: teacher.full_name,
       dni: teacher.dni,
       email: teacher.email || '',
       phone: teacher.phone || '',
+      status: teacher.status,
     });
     setIsEditTeacherModalOpen(true);
   };
@@ -316,6 +321,7 @@ const Users = () => {
           dni: teacherFormData.dni,
           email: teacherFormData.email || null,
           phone: teacherFormData.phone || null,
+          status: teacherFormData.status,
         })
         .eq('id', teacherToEdit.id);
 
@@ -328,7 +334,7 @@ const Users = () => {
 
       setIsEditTeacherModalOpen(false);
       setTeacherToEdit(null);
-      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '' });
+      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '', status: 'activo' });
       fetchTeachers();
     } catch (error: unknown) {
       console.error('Error updating teacher:', error);
@@ -557,6 +563,7 @@ const Users = () => {
                     <TableHead>DNI</TableHead>
                     <TableHead>Correo Electrónico</TableHead>
                     <TableHead>Teléfono</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead className="w-[50px]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -576,6 +583,14 @@ const Users = () => {
                       <TableCell>{teacher.dni}</TableCell>
                       <TableCell>{teacher.email || 'N/A'}</TableCell>
                       <TableCell>{teacher.phone || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={teacher.status === 'activo' ? 'default' : 'secondary'}
+                          className={teacher.status === 'activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+                        >
+                          {teacher.status === 'activo' ? 'Activo' : 'De Baja'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -731,6 +746,23 @@ const Users = () => {
                 onChange={(e) => setTeacherFormData({ ...teacherFormData, phone: e.target.value })}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="teacher_status">Estado</Label>
+              <Select
+                value={teacherFormData.status}
+                onValueChange={(value: 'activo' | 'baja') => 
+                  setTeacherFormData({ ...teacherFormData, status: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="activo">Activo</SelectItem>
+                  <SelectItem value="baja">De Baja</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter>
               <Button
                 type="button"
@@ -810,6 +842,23 @@ const Users = () => {
                 onChange={(e) => setTeacherFormData({ ...teacherFormData, phone: e.target.value })}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_status">Estado</Label>
+              <Select
+                value={teacherFormData.status}
+                onValueChange={(value: 'activo' | 'baja') => 
+                  setTeacherFormData({ ...teacherFormData, status: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="activo">Activo</SelectItem>
+                  <SelectItem value="baja">De Baja</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter>
               <Button
                 type="button"
@@ -817,7 +866,7 @@ const Users = () => {
                 onClick={() => {
                   setIsEditTeacherModalOpen(false);
                   setTeacherToEdit(null);
-                  setTeacherFormData({ full_name: '', dni: '', email: '', phone: '' });
+                  setTeacherFormData({ full_name: '', dni: '', email: '', phone: '', status: 'activo' });
                 }}
               >
                 Cancelar
