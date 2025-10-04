@@ -83,7 +83,7 @@ const Users = () => {
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [isEditTeacherModalOpen, setIsEditTeacherModalOpen] = useState(false);
   const [teacherToEdit, setTeacherToEdit] = useState<{id: string; full_name: string; dni: string; email?: string; phone?: string} | null>(null);
-  const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string}>>([]);
+  const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string; has_movements?: boolean}>>([]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -143,11 +143,29 @@ const Users = () => {
     try {
       const { data, error } = await supabase
         .from('teachers')
-        .select('id, full_name, dni, email, phone')
+        .select(`
+          id, 
+          full_name, 
+          dni, 
+          email, 
+          phone,
+          movements:movements(id)
+        `)
         .order('full_name');
 
       if (error) throw error;
-      setTeachers(data || []);
+
+      // Procesar los datos para incluir información sobre movimientos
+      const teachersWithMovements = (data || []).map(teacher => ({
+        id: teacher.id,
+        full_name: teacher.full_name,
+        dni: teacher.dni,
+        email: teacher.email,
+        phone: teacher.phone,
+        has_movements: teacher.movements && teacher.movements.length > 0
+      }));
+
+      setTeachers(teachersWithMovements);
     } catch (error) {
       console.error('Error fetching teachers:', error);
     }
@@ -328,6 +346,25 @@ const Users = () => {
   const handleDeleteTeacher = async (teacherId: string) => {
     setLoading(true);
     try {
+      // Primero verificar si el docente tiene movimientos asociados
+      const { data: movements, error: movementsError } = await supabase
+        .from('movements')
+        .select('id')
+        .eq('teacher_id', teacherId)
+        .limit(1);
+
+      if (movementsError) throw movementsError;
+
+      if (movements && movements.length > 0) {
+        toast({
+          title: "No se puede eliminar",
+          description: "Este docente tiene préstamos asociados. No se puede eliminar.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Si no hay movimientos, proceder con la eliminación
       const { error } = await supabase
         .from('teachers')
         .delete()
@@ -527,7 +564,14 @@ const Users = () => {
                   {teachers.map((teacher) => (
                     <TableRow key={teacher.id}>
                       <TableCell className="font-medium">
-                        {teacher.full_name}
+                        <div className="flex items-center gap-2">
+                          {teacher.full_name}
+                          {teacher.has_movements && (
+                            <Badge variant="secondary" className="text-xs">
+                              Con préstamos
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{teacher.dni}</TableCell>
                       <TableCell>{teacher.email || 'N/A'}</TableCell>
@@ -546,10 +590,11 @@ const Users = () => {
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleDeleteTeacher(teacher.id)}
-                              className="text-destructive"
+                              className={teacher.has_movements ? "text-muted-foreground cursor-not-allowed" : "text-destructive"}
+                              disabled={teacher.has_movements}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Eliminar
+                              {teacher.has_movements ? "No se puede eliminar" : "Eliminar"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

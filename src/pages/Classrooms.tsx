@@ -46,6 +46,7 @@ interface Classroom {
   location?: string;
   created_at: string;
   updated_at: string;
+  has_movements?: boolean;
 }
 
 const Classrooms = () => {
@@ -72,11 +73,21 @@ const Classrooms = () => {
     try {
       const { data, error } = await supabase
         .from('classrooms')
-        .select('*')
+        .select(`
+          *,
+          movements:movements(id)
+        `)
         .order('name');
 
       if (error) throw error;
-      setClassrooms(data || []);
+
+      // Procesar los datos para incluir información sobre movimientos
+      const classroomsWithMovements = (data || []).map(classroom => ({
+        ...classroom,
+        has_movements: classroom.movements && classroom.movements.length > 0
+      }));
+
+      setClassrooms(classroomsWithMovements);
     } catch (error) {
       console.error('Error fetching classrooms:', error);
       toast({
@@ -195,6 +206,27 @@ const Classrooms = () => {
 
     setLoading(true);
     try {
+      // Primero verificar si el aula tiene movimientos asociados
+      const { data: movements, error: movementsError } = await supabase
+        .from('movements')
+        .select('id')
+        .eq('classroom_id', classroomToDelete.id)
+        .limit(1);
+
+      if (movementsError) throw movementsError;
+
+      if (movements && movements.length > 0) {
+        toast({
+          title: "No se puede eliminar",
+          description: "Este aula tiene préstamos asociados. No se puede eliminar.",
+          variant: "destructive",
+        });
+        setIsDeleteDialogOpen(false);
+        setClassroomToDelete(null);
+        return;
+      }
+
+      // Si no hay movimientos, proceder con la eliminación
       const { error } = await supabase
         .from('classrooms')
         .delete()
@@ -315,7 +347,14 @@ const Classrooms = () => {
                   {filteredClassrooms.map((classroom) => (
                     <TableRow key={classroom.id}>
                       <TableCell className="font-medium">
-                        {classroom.name}
+                        <div className="flex items-center gap-2">
+                          {classroom.name}
+                          {classroom.has_movements && (
+                            <Badge variant="secondary" className="text-xs">
+                              Con préstamos
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {classroom.location || 'N/A'}
@@ -350,6 +389,8 @@ const Classrooms = () => {
                               setClassroomToDelete(classroom);
                               setIsDeleteDialogOpen(true);
                             }}
+                            disabled={classroom.has_movements}
+                            title={classroom.has_movements ? "No se puede eliminar: tiene préstamos asociados" : "Eliminar aula"}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
