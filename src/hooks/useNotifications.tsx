@@ -38,7 +38,7 @@ export const useNotifications = () => {
       const { data, error } = await supabase
         .from('user_notifications')
         .select('*')
-        .eq('user_id', userProfile.id)
+        .eq('user_id', userProfile.user_id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -52,6 +52,25 @@ export const useNotifications = () => {
           equipment_loans: data.equipment_loans || false,
           system_updates: data.system_updates || false,
         });
+      } else {
+        // Si no hay configuración, crear una por defecto con notificaciones habilitadas
+        const defaultSettings = {
+          email_notifications: true,
+          low_stock_alerts: true,
+          equipment_loans: true,
+          system_updates: false,
+        };
+        
+        const { error: insertError } = await supabase
+          .from('user_notifications')
+          .insert({
+            user_id: userProfile.user_id,
+            ...defaultSettings,
+          });
+
+        if (!insertError) {
+          setSettings(defaultSettings);
+        }
       }
     } catch (error) {
       console.error('Error fetching notification settings:', error);
@@ -68,7 +87,7 @@ export const useNotifications = () => {
       const { error } = await supabase
         .from('user_notifications')
         .upsert({
-          user_id: userProfile.id,
+          user_id: userProfile.user_id,
           ...updatedSettings,
         });
 
@@ -146,18 +165,28 @@ export const useNotifications = () => {
       const { data: lowStockItems, error } = await supabase
         .from('equipment')
         .select('name, available_quantity, quantity')
-        .lt('available_quantity', 10) // Umbral de bajo stock
+        .lt('available_quantity', 5) // Umbral de bajo stock más estricto
         .gt('available_quantity', 0);
 
       if (error) throw error;
 
       if (lowStockItems && lowStockItems.length > 0) {
-        const itemNames = lowStockItems.map(item => item.name).join(', ');
-        await sendNotification(
-          'Alerta de Bajo Stock',
-          `Los siguientes equipos tienen bajo stock: ${itemNames}`,
-          'warning'
-        );
+        // Verificar si ya se envió una notificación reciente para evitar spam
+        const { data: recentNotifications } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('title', 'Alerta de Bajo Stock')
+          .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString()) // Últimos 30 minutos
+          .limit(1);
+
+        if (!recentNotifications || recentNotifications.length === 0) {
+          const itemNames = lowStockItems.map(item => `${item.name} (${item.available_quantity} disponibles)`).join(', ');
+          await sendNotification(
+            'Alerta de Bajo Stock',
+            `Los siguientes equipos tienen bajo stock: ${itemNames}`,
+            'warning'
+          );
+        }
       }
     } catch (error) {
       console.error('Error checking low stock:', error);

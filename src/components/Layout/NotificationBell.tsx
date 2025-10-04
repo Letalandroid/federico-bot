@@ -35,7 +35,7 @@ const NotificationBell = () => {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', userProfile.id)
+        .eq('user_id', userProfile.user_id)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -73,7 +73,7 @@ const NotificationBell = () => {
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('user_id', userProfile.id)
+        .eq('user_id', userProfile.user_id)
         .eq('read', false);
 
       if (error) throw error;

@@ -91,7 +91,7 @@ const Profile = () => {
       const { data, error } = await supabase
         .from('user_notifications')
         .select('*')
-        .eq('user_id', userProfile.id)
+        .eq('user_id', userProfile.user_id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -160,7 +160,7 @@ const Profile = () => {
       const { error } = await supabase
         .from('user_notifications')
         .upsert({
-          user_id: userProfile.id,
+          user_id: userProfile.user_id,
           ...notificationSettings,
         });
 
