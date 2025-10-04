@@ -45,7 +45,7 @@ import { Navigate } from 'react-router-dom';
 
 interface UserData {
   id: string;
-  email: string;
+  role: string;
   full_name: string;
   created_at: string;
   roles: { role: string }[];
@@ -85,6 +85,7 @@ const Users = () => {
         .select(`
           id,
           full_name,
+          role,
           created_at
         `)
         .order('created_at', { ascending: false });
@@ -102,8 +103,8 @@ const Users = () => {
         
         return {
           id: profile.id,
-          email: 'Usuario del Sistema', // Simplified to avoid admin permissions
           full_name: profile.full_name,
+          role: profile.role,
           created_at: profile.created_at,
           roles: userRoles,
         };
@@ -356,8 +357,7 @@ const Users = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nombre Completo</TableHead>
-                    <TableHead>Correo Electrónico</TableHead>
-                    <TableHead>Roles</TableHead>
+                    <TableHead>Rol</TableHead>
                     <TableHead>Fecha de Registro</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -368,19 +368,7 @@ const Users = () => {
                       <TableCell className="font-medium">
                         {user.full_name}
                       </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {user.roles.map((role, idx) => (
-                            <Badge 
-                              key={idx} 
-                              className={getRoleBadgeColor(role.role)}
-                            >
-                              {getRoleLabel(role.role)}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
+                      <TableCell>{user.role}</TableCell>
                       <TableCell>
                         {new Date(user.created_at).toLocaleDateString('es-ES')}
                       </TableCell>
