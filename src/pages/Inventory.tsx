@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Filter, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
 import {
   Table,
   TableBody,
@@ -59,6 +60,7 @@ const Inventory = () => {
   const [equipmentToDelete, setEquipmentToDelete] = useState<Equipment | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { checkLowStock } = useNotifications();
 
   useEffect(() => {
     fetchEquipment();
@@ -78,6 +80,9 @@ const Inventory = () => {
 
       if (error) throw error;
       setEquipment(data || []);
+      
+      // Verificar bajo stock después de cargar el inventario
+      checkLowStock();
     } catch (error) {
       console.error('Error fetching equipment:', error);
       toast({

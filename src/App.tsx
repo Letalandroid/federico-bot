@@ -10,9 +10,10 @@ import Inventory from "./pages/Inventory";
 import Categories from "./pages/Categories";
 import Movements from "./pages/Movements";
 import Reports from "./pages/Reports";
-import EquipmentRegistry from "./pages/EquipmentRegistry";
 import EquipmentLoans from "./pages/EquipmentLoans";
 import Users from "./pages/Users";
+import Classrooms from "./pages/Classrooms";
+import Profile from "./pages/Profile";
 import ChatBot from "./components/Chat/ChatBot";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -34,9 +35,10 @@ const App = () => (
               <Route path="categories" element={<Categories />} />
               <Route path="movements" element={<Movements />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="equipment-registry" element={<EquipmentRegistry />} />
               <Route path="equipment-loans" element={<EquipmentLoans />} />
               <Route path="users" element={<Users />} />
+              <Route path="classrooms" element={<Classrooms />} />
+              <Route path="profile" element={<Profile />} />
               <Route path="chat" element={<ChatBot />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             </Route>

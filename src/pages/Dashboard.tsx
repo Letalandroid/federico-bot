@@ -16,8 +16,6 @@ interface DashboardStats {
   totalMovements: number;
   totalUsers: number;
   activeUsers: number;
-  totalRegistries: number;
-  pendingRegistries: number;
   recentMovements: any[];
 }
 
@@ -32,8 +30,6 @@ const Dashboard = () => {
     totalMovements: 0,
     totalUsers: 0,
     activeUsers: 0,
-    totalRegistries: 0,
-    pendingRegistries: 0,
     recentMovements: [],
   });
   const [loading, setLoading] = useState(true);
@@ -69,10 +65,6 @@ const Dashboard = () => {
         .from('profiles')
         .select('is_active');
 
-      // Fetch equipment registries stats
-      const { data: registries } = await supabase
-        .from('equipment_registry')
-        .select('status');
 
       if (equipment) {
         const totalEquipment = equipment.length;
@@ -85,8 +77,6 @@ const Dashboard = () => {
         const totalMovements = movements?.length || 0;
         const totalUsers = users?.length || 0;
         const activeUsers = users?.filter(u => u.is_active).length || 0;
-        const totalRegistries = registries?.length || 0;
-        const pendingRegistries = registries?.filter(r => r.status === 'pendiente').length || 0;
 
         setStats({
           totalEquipment,
@@ -98,8 +88,6 @@ const Dashboard = () => {
           totalMovements,
           totalUsers,
           activeUsers,
-          totalRegistries,
-          pendingRegistries,
           recentMovements: movements || [],
         });
       }
@@ -154,14 +142,6 @@ const Dashboard = () => {
       icon: UserPlus,
       color: 'text-info',
       link: '/users',
-    },
-    {
-      title: 'Registros Pendientes',
-      value: stats.pendingRegistries,
-      description: 'Requieren revisión',
-      icon: FileSpreadsheet,
-      color: 'text-purple-500',
-      link: '/equipment-registry',
     },
   ];
 

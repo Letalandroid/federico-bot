@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRole } from '@/hooks/useRole';
-import { Plus, Trash2, UserPlus, Shield, Loader2 } from 'lucide-react';
+import { Plus, Trash2, UserPlus, Shield, Loader2, GraduationCap } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -67,6 +67,16 @@ const Users = () => {
     role: 'tecnico' as 'administrador' | 'tecnico',
   });
 
+  const [teacherFormData, setTeacherFormData] = useState({
+    full_name: '',
+    dni: '',
+    email: '',
+    phone: '',
+  });
+
+  const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string}>>([]);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -116,8 +126,23 @@ const Users = () => {
   useEffect(() => {
     if (isAdmin) {
       fetchUsers();
+      fetchTeachers();
     }
   }, [isAdmin, fetchUsers]);
+
+  const fetchTeachers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('teachers')
+        .select('id, full_name, dni, email, phone')
+        .order('full_name');
+
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (error) {
+      console.error('Error fetching teachers:', error);
+    }
+  };
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +203,59 @@ const Users = () => {
     }
   };
 
+
+  const getRoleBadgeColor = (role: string) => {
+    return role === 'administrador' 
+      ? 'bg-primary text-primary-foreground' 
+      : 'bg-secondary text-secondary-foreground';
+  };
+
+  const handleCreateTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!teacherFormData.full_name || !teacherFormData.dni) {
+      toast({
+        title: "Error",
+        description: "Nombre completo y DNI son obligatorios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('teachers')
+        .insert({
+          full_name: teacherFormData.full_name,
+          dni: teacherFormData.dni,
+          email: teacherFormData.email || null,
+          phone: teacherFormData.phone || null,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Docente creado correctamente",
+      });
+
+      setIsTeacherModalOpen(false);
+      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '' });
+      fetchTeachers();
+    } catch (error: unknown) {
+      console.error('Error creating teacher:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo crear el docente";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
 
@@ -195,7 +273,7 @@ const Users = () => {
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
-        .eq('user_id', userToDelete.id);
+        .eq('id', userToDelete.id);
 
       if (profileError) throw profileError;
 
@@ -220,12 +298,6 @@ const Users = () => {
     }
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    return role === 'administrador' 
-      ? 'bg-primary text-primary-foreground' 
-      : 'bg-secondary text-secondary-foreground';
-  };
-
   const getRoleLabel = (role: string) => {
     return role === 'administrador' ? 'Administrador' : 'Técnico';
   };
@@ -244,18 +316,24 @@ const Users = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Gestión de Usuarios</h1>
-          <p className="text-muted-foreground">
-            Administra los usuarios del sistema
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Gestión de Usuarios</h1>
+            <p className="text-muted-foreground">
+              Administra los usuarios del sistema y docentes
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => setIsTeacherModalOpen(true)} variant="outline" className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" />
+              Agregar Docente
+            </Button>
+            <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Agregar Usuario
+            </Button>
+          </div>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
-          <UserPlus className="h-4 w-4" />
-          Agregar Usuario
-        </Button>
-      </div>
 
       <Card>
         <CardHeader>
@@ -325,6 +403,56 @@ const Users = () => {
               {users.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No hay usuarios registrados
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sección de Docentes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            Docentes Registrados
+          </CardTitle>
+          <CardDescription>
+            Lista de docentes registrados en el sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre Completo</TableHead>
+                    <TableHead>DNI</TableHead>
+                    <TableHead>Correo Electrónico</TableHead>
+                    <TableHead>Teléfono</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teachers.map((teacher) => (
+                    <TableRow key={teacher.id}>
+                      <TableCell className="font-medium">
+                        {teacher.full_name}
+                      </TableCell>
+                      <TableCell>{teacher.dni}</TableCell>
+                      <TableCell>{teacher.email || 'N/A'}</TableCell>
+                      <TableCell>{teacher.phone || 'N/A'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {teachers.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay docentes registrados
                 </div>
               )}
             </div>
@@ -405,6 +533,68 @@ const Users = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Modal para agregar docente */}
+      <Dialog open={isTeacherModalOpen} onOpenChange={setIsTeacherModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar Nuevo Docente</DialogTitle>
+            <DialogDescription>
+              Registra un nuevo docente en el sistema
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateTeacher} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="teacher_full_name">Nombre Completo *</Label>
+              <Input
+                id="teacher_full_name"
+                value={teacherFormData.full_name}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, full_name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="teacher_dni">DNI *</Label>
+              <Input
+                id="teacher_dni"
+                value={teacherFormData.dni}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, dni: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="teacher_email">Correo Electrónico (Opcional)</Label>
+              <Input
+                id="teacher_email"
+                type="email"
+                value={teacherFormData.email}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="teacher_phone">Teléfono (Opcional)</Label>
+              <Input
+                id="teacher_phone"
+                value={teacherFormData.phone}
+                onChange={(e) => setTeacherFormData({ ...teacherFormData, phone: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsTeacherModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Crear Docente
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -421,6 +611,7 @@ const Users = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 };
