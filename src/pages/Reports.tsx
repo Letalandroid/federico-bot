@@ -60,22 +60,6 @@ interface MovementReport {
   } | null;
 }
 
-interface EquipmentRegistry {
-  id: string;
-  equipment_id: string;
-  reason: string;
-  description: string;
-  date_occurred: string;
-  status: string;
-  equipment: {
-    name: string;
-    brand: string;
-    model: string;
-  };
-  profiles: {
-    full_name: string;
-  };
-}
 
 interface UserReport {
   id: string;
@@ -90,7 +74,6 @@ interface UserReport {
 const Reports = () => {
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [movements, setMovements] = useState<MovementReport[]>([]);
-  const [equipmentRegistries, setEquipmentRegistries] = useState<EquipmentRegistry[]>([]);
   const [users, setUsers] = useState<UserReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState('');
@@ -180,48 +163,6 @@ const Reports = () => {
     }
   };
 
-  const fetchEquipmentRegistries = async () => {
-    if (!startDate || !endDate) {
-      toast({
-        title: "Error",
-        description: "Por favor selecciona ambas fechas",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('equipment_registry')
-        .select(`
-          *,
-          equipment (
-            name,
-            brand,
-            model
-          ),
-          profiles (
-            full_name
-          )
-        `)
-        .gte('date_occurred', startDate)
-        .lte('date_occurred', endDate)
-        .order('date_occurred', { ascending: false });
-
-      if (error) throw error;
-      setEquipmentRegistries(data || []);
-    } catch (error) {
-      console.error('Error fetching equipment registries:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo cargar el reporte de registros de equipos",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -367,45 +308,6 @@ const Reports = () => {
     });
   };
 
-  const exportEquipmentRegistriesToExcel = () => {
-    if (equipmentRegistries.length === 0) {
-      toast({
-        title: "Sin datos",
-        description: "No hay registros de equipos para exportar en el rango seleccionado",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const exportData = equipmentRegistries.map(registry => ({
-      'Fecha': new Date(registry.date_occurred).toLocaleDateString('es-ES'),
-      'Equipo': registry.equipment?.name || 'N/A',
-      'Marca': registry.equipment?.brand || 'N/A',
-      'Modelo': registry.equipment?.model || 'N/A',
-      'Motivo': registry.reason,
-      'Descripción': registry.description,
-      'Estado': registry.status,
-      'Reportado por': registry.profiles?.full_name || 'N/A',
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Registros de Equipos');
-
-    // Auto-size columns
-    const colWidths = Object.keys(exportData[0] || {}).map(key => ({
-      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
-    }));
-    ws['!cols'] = colWidths;
-
-    const fileName = `Reporte_Registros_Equipos_${startDate}_${endDate}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-
-    toast({
-      title: "Éxito",
-      description: "Reporte de registros de equipos exportado correctamente",
-    });
-  };
 
   const exportUsersToExcel = () => {
     if (users.length === 0) {
@@ -484,24 +386,6 @@ const Reports = () => {
       XLSX.utils.book_append_sheet(wb, ws2, 'Movimientos');
     }
 
-    // Equipment Registries Report
-    if (equipmentRegistries.length > 0) {
-      const registriesData = equipmentRegistries.map(registry => ({
-        'Fecha': new Date(registry.date_occurred).toLocaleDateString('es-ES'),
-        'Equipo': registry.equipment?.name || 'N/A',
-        'Marca': registry.equipment?.brand || 'N/A',
-        'Modelo': registry.equipment?.model || 'N/A',
-        'Motivo': registry.reason,
-        'Descripción': registry.description,
-        'Estado': registry.status,
-        'Reportado por': registry.profiles?.full_name || 'N/A',
-      }));
-      const ws3 = XLSX.utils.json_to_sheet(registriesData);
-      ws3['!cols'] = Object.keys(registriesData[0] || {}).map(key => ({
-        wch: Math.max(key.length, ...registriesData.map(row => String(row[key as keyof typeof row]).length))
-      }));
-      XLSX.utils.book_append_sheet(wb, ws3, 'Registros de Equipos');
-    }
 
     // Users Report
     if (users.length > 0) {
@@ -603,7 +487,6 @@ const Reports = () => {
             <SelectContent>
               <SelectItem value="inventory">Inventario</SelectItem>
               <SelectItem value="movements">Movimientos</SelectItem>
-              <SelectItem value="equipment_registry">Registros de Equipos</SelectItem>
               <SelectItem value="users">Usuarios</SelectItem>
             </SelectContent>
           </Select>
@@ -651,6 +534,7 @@ const Reports = () => {
                   <TableHead>Producto</TableHead>
                   <TableHead>Categoría</TableHead>
                   <TableHead>Marca/Modelo</TableHead>
+                  <TableHead>N° Serie</TableHead>
                   <TableHead className="text-center">Disponible</TableHead>
                   <TableHead className="text-center">Total</TableHead>
                   <TableHead className="text-center">Estado</TableHead>
@@ -671,6 +555,11 @@ const Reports = () => {
                       <div className="text-sm">
                         <div>{item.brand || 'N/A'}</div>
                         <div className="text-muted-foreground">{item.model || 'N/A'}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm font-mono">
+                        {item.serial_number || 'N/A'}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -809,120 +698,6 @@ const Reports = () => {
         </CardContent>
       </Card>
 
-      {/* Equipment Registry Report */}
-      {reportType === 'equipment_registry' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Registros de Equipos
-            </CardTitle>
-            <CardDescription>
-              Registros de malogros, bajas y mantenimientos de equipos
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <div>
-                <Label htmlFor="startDateRegistry">Fecha Inicio</Label>
-                <Input
-                  id="startDateRegistry"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="endDateRegistry">Fecha Fin</Label>
-                <Input
-                  id="endDateRegistry"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={fetchEquipmentRegistries}
-                  disabled={loading}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Consultar
-                </Button>
-                <Button
-                  onClick={exportEquipmentRegistriesToExcel}
-                  variant="outline"
-                  disabled={equipmentRegistries.length === 0}
-                  className="flex items-center gap-2"
-                >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Exportar
-                </Button>
-              </div>
-            </div>
-
-            {equipmentRegistries.length > 0 && (
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Equipo</TableHead>
-                      <TableHead>Motivo</TableHead>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Reportado por</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {equipmentRegistries.slice(0, 10).map((registry) => (
-                      <TableRow key={registry.id}>
-                        <TableCell>
-                          <div className="text-sm">
-                            {new Date(registry.date_occurred).toLocaleDateString('es-ES')}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{registry.equipment?.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {registry.equipment?.brand} - {registry.equipment?.model}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {registry.reason}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-w-xs truncate">
-                            {registry.description}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {registry.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {registry.profiles?.full_name || 'N/A'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {equipmentRegistries.length > 10 && (
-                  <div className="text-center py-2 text-sm text-muted-foreground border-t">
-                    Mostrando 10 de {equipmentRegistries.length} registros. Exporta para ver todos.
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Users Report */}
       {reportType === 'users' && (

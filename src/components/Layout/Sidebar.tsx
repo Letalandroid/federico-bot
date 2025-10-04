@@ -10,9 +10,9 @@ import {
   GraduationCap,
   Settings,
   Users,
-  AlertTriangle,
   UserPlus,
-  HandCoins
+  HandCoins,
+  User
 } from 'lucide-react';
 
 const menuItems = [
@@ -37,11 +37,6 @@ const menuItems = [
     href: '/movements',
   },
   {
-    title: 'Registro de Equipos',
-    icon: AlertTriangle,
-    href: '/equipment-registry',
-  },
-  {
     title: 'Préstamos de Equipos',
     icon: HandCoins,
     href: '/equipment-loans',
@@ -50,6 +45,11 @@ const menuItems = [
     title: 'Gestión de Usuarios',
     icon: UserPlus,
     href: '/users',
+  },
+  {
+    title: 'Gestión de Aulas',
+    icon: GraduationCap,
+    href: '/classrooms',
   },
   {
     title: 'Reportes',
@@ -61,6 +61,11 @@ const menuItems = [
   //   icon: Users,
   //   href: '/users',
   // },
+  {
+    title: 'Mi Perfil',
+    icon: User,
+    href: '/profile',
+  },
   {
     title: 'Chatbot',
     icon: MessageCircle,

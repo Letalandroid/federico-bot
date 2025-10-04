@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Calendar, User, Package, ArrowLeft, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
 import {
   Table,
   TableBody,
@@ -91,6 +92,7 @@ const EquipmentLoans = () => {
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
+  const { notifyEquipmentLoan } = useNotifications();
 
   const [formData, setFormData] = useState({
     equipment_id: '',
@@ -287,6 +289,17 @@ const EquipmentLoans = () => {
         description: "Préstamo registrado correctamente",
       });
 
+      // Enviar notificación
+      const selectedTeacher = teachers.find(t => t.id === formData.teacher_id);
+      const selectedEquipment = equipment.find(e => e.id === formData.equipment_id);
+      if (selectedTeacher && selectedEquipment) {
+        await notifyEquipmentLoan(
+          selectedEquipment.name,
+          selectedTeacher.full_name,
+          formData.movement_type === 'asignacion' ? 'loan' : 'return'
+        );
+      }
+
       fetchLoans();
       fetchEquipment();
       setIsModalOpen(false);
@@ -360,6 +373,15 @@ const EquipmentLoans = () => {
         title: "Éxito",
         description: "Devolución registrada correctamente",
       });
+
+      // Enviar notificación
+      if (loanToReturn.teachers && loanToReturn.equipment) {
+        await notifyEquipmentLoan(
+          loanToReturn.equipment.name,
+          loanToReturn.teachers.full_name,
+          'return'
+        );
+      }
 
       fetchLoans();
       fetchEquipment();
