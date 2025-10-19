@@ -6,46 +6,6 @@ import { vi } from 'vitest'
 import { AuthProvider } from '@/hooks/useAuth'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
-// Mock de Supabase para testing
-const mockSupabase = {
-  auth: {
-    onAuthStateChange: vi.fn(() => ({
-      data: { subscription: { unsubscribe: vi.fn() } }
-    })),
-    getSession: vi.fn(() => Promise.resolve({ data: { session: null } })),
-    signInWithPassword: vi.fn(() => Promise.resolve({ error: null })),
-    signUp: vi.fn(() => Promise.resolve({ error: null })),
-    signOut: vi.fn(() => Promise.resolve()),
-    getUser: vi.fn(() => Promise.resolve({ data: { user: null } })),
-  },
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        single: vi.fn(() => Promise.resolve({ data: null, error: null }))
-      }))
-    })),
-    insert: vi.fn(() => Promise.resolve({ error: null })),
-    update: vi.fn(() => ({
-      eq: vi.fn(() => Promise.resolve({ error: null }))
-    })),
-    delete: vi.fn(() => ({
-      eq: vi.fn(() => Promise.resolve({ error: null }))
-    }))
-  }))
-}
-
-// Mock del módulo de Supabase
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: mockSupabase
-}))
-
-// Mock del hook useToast
-vi.mock('@/components/ui/use-toast', () => ({
-  useToast: () => ({
-    toast: vi.fn()
-  })
-}))
-
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   const queryClient = new QueryClient({
     defaultOptions: {
