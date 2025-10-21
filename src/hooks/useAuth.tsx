@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('user_id', userId)
         .single();
 
       if (data) {
@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Si no existe (error PGRST116), crear uno nuevo
       if (error && error.code === 'PGRST116') {
         console.log('Profile not found, creating default profile for user:', userId);
-        
+
         const { data: userData } = await supabase.auth.getUser();
         if (userData?.user) {
           const { error: insertError } = await supabase
