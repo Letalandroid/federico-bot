@@ -82,8 +82,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   });
 
   useEffect(() => {
+    fetchCategories();
     if (isOpen) {
-      fetchCategories();
       if (product) {
         setFormData({
           ...product,
@@ -116,7 +116,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         .order("name");
 
       if (error) throw error;
-      setCategories(data || []);
+      setCategories(data);
     } catch (error) {
       console.error("Error fetching categories:", error);
     }
@@ -124,6 +124,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log(user);
+    
     if (!user) return;
 
     setLoading(true);
