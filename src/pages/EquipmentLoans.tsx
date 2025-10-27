@@ -523,6 +523,7 @@ const EquipmentLoans = () => {
               <TableRow>
                 <TableHead>Equipo</TableHead>
                 <TableHead>Docente</TableHead>
+                <TableHead>Aula</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Cantidad</TableHead>
                 <TableHead>Fecha Préstamo</TableHead>
@@ -553,6 +554,14 @@ const EquipmentLoans = () => {
                         <div className="text-sm text-muted-foreground">
                           DNI: {loan.teachers?.dni}
                         </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="font-medium">{loan.classrooms.name || 'Indefinida'}</div>
                       </div>
                     </div>
                   </TableCell>
