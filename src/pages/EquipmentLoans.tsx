@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Search, Calendar, User, Package, ArrowLeft, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Calendar, User, Package, ArrowLeft, CheckCircle, Clock, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -100,7 +100,6 @@ const EquipmentLoans = () => {
     movement_type: 'asignacion' as 'asignacion' | 'devolucion',
     quantity: 1,
     description: '',
-    scheduled_return_date: '',
   });
 
   useEffect(() => {
@@ -215,7 +214,7 @@ const EquipmentLoans = () => {
     setSubmitting(true);
 
     // Validar campos obligatorios
-    if (!formData.equipment_id || !formData.teacher_id || !formData.scheduled_return_date) {
+    if (!formData.equipment_id || !formData.teacher_id) {
       toast({
         title: "Error",
         description: "Por favor completa todos los campos obligatorios",
@@ -278,7 +277,6 @@ const EquipmentLoans = () => {
           movement_type: formData.movement_type,
           quantity: formData.quantity,
           teacher_id: formData.teacher_id,
-          scheduled_return_date: formData.scheduled_return_date,
         },
         changed_by: userProfile.id,
       });
@@ -299,7 +297,6 @@ const EquipmentLoans = () => {
         movement_type: 'asignacion',
         quantity: 1,
         description: '',
-        scheduled_return_date: '',
       });
     } catch (error) {
       console.error('Error creating loan:', error);
@@ -317,11 +314,13 @@ const EquipmentLoans = () => {
     if (!loanToReturn || !userProfile) return;
 
     try {
+      const returnDateTime = new Date().toISOString();
+      
       const { error } = await supabase
         .from('movements')
         .update({
           status: 'completado',
-          actual_return_date: new Date().toISOString().split('T')[0],
+          actual_return_date: returnDateTime,
         })
         .eq('id', loanToReturn.id);
 
@@ -353,7 +352,7 @@ const EquipmentLoans = () => {
         action: 'return',
         new_values: {
           movement_id: loanToReturn.id,
-          actual_return_date: new Date().toISOString().split('T')[0],
+          actual_return_date: returnDateTime,
         },
         changed_by: userProfile.id,
       });
@@ -432,6 +431,23 @@ const EquipmentLoans = () => {
       devolucion: 'Devolución',
     };
     return labels[type as keyof typeof labels] || type;
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  };
+
+  const isOverdue = (createdAt: string): boolean => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffInHours = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+    return diffInHours > 5;
   };
 
   const filteredLoans = loans.filter(loan => {
@@ -580,19 +596,29 @@ const EquipmentLoans = () => {
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {new Date(loan.created_at).toLocaleDateString('es-ES')}
+                        {formatDateTime(loan.created_at)}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {loan.actual_return_date 
-                          ? new Date(loan.actual_return_date).toLocaleDateString('es-ES')
-                          : new Date(loan.scheduled_return_date).toLocaleDateString('es-ES')
-                        }
-                      </span>
+                      {loan.actual_return_date ? (
+                        <span className="text-sm">
+                          {formatDateTime(loan.actual_return_date)}
+                        </span>
+                      ) : loan.status === 'activo' ? (
+                        isOverdue(loan.created_at) ? (
+                          <div className="flex items-center gap-2 text-red-600">
+                            <AlertCircle className="h-4 w-4" />
+                            <span className="text-sm font-medium">Sin devolver</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -722,7 +748,7 @@ const EquipmentLoans = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label htmlFor="quantity">Cantidad *</Label>
                 <NumberInput
@@ -730,16 +756,6 @@ const EquipmentLoans = () => {
                   value={formData.quantity}
                   onChange={(value) => setFormData(prev => ({ ...prev, quantity: parseInt(value) || 1 }))}
                   allowEmpty={false}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="scheduled_return_date">Fecha de Retorno *</Label>
-                <Input
-                  id="scheduled_return_date"
-                  type="date"
-                  value={formData.scheduled_return_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, scheduled_return_date: e.target.value }))}
                   required
                 />
               </div>
