@@ -283,16 +283,19 @@ const Reports = () => {
       return;
     }
 
-    const exportData = movements.map((movement, index) => ({
-      'N° DE ORDEN': index + 1,
-      'CÓDIGO PATRIMONIAL': movement.equipment?.serial_number || 'N/A',
-      'DENOMINACIÓN': movement.equipment?.name || 'N/A',
-      'UBICACIÓN': movement.equipment?.location || 'N/A',
-      'COLOR': movement.equipment?.color || 'N/A',
-      'MARCA': movement.equipment?.brand || 'N/A',
-      'ESTADO': movement.equipment?.state || 'N/A',
-      'OBSERVACIÓN': movement.equipment?.description || 'N/A',
-    }));
+    const exportData = movements.map((movement, index) => {
+      const d = movement.new_values || {};
+      return {
+        'N° DE ORDEN': index + 1,
+        'CÓDIGO PATRIMONIAL': d.serial_number || 'N/A',
+        'DENOMINACIÓN': d.name || 'Equipo',
+        'UBICACIÓN': d.location || 'N/A',
+        'COLOR': d.color || 'N/A',
+        'MARCA': d.brand || 'N/A',
+        'ESTADO': d.state || 'N/A',
+        'OBSERVACIÓN': d.description || 'N/A',
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -499,7 +502,7 @@ const Reports = () => {
       </div>
 
       {/* Report Type Selector */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Seleccionar Tipo de Reporte</CardTitle>
         </CardHeader>
@@ -515,7 +518,7 @@ const Reports = () => {
             </SelectContent>
           </Select>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Low Stock Report */}
       <Card>
@@ -691,36 +694,40 @@ const Reports = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {movements.slice(0, 10).map((movement, index) => (
-                    <TableRow key={movement.id}>
-                      <TableCell className="font-medium">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell>
-                        {movement.equipment?.serial_number || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {movement.equipment?.name || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {movement.equipment?.location || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {movement.equipment?.color || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {movement.equipment?.brand || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {movement.equipment?.state || 'N/A'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {movement.equipment?.description || 'N/A'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {movements.slice(0, 10).map((movement, index) => {
+                    // Usamos new_values como fuente principal (puedes ajustar a old_values si lo prefieres)
+                    const d = movement.new_values || {};
+                    return (
+                      <TableRow key={movement.id}>
+                        <TableCell className="font-medium">
+                          {index + 1}
+                        </TableCell>
+                        <TableCell>
+                          {d.serial_number || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {d.name || 'Equipo'}
+                        </TableCell>
+                        <TableCell>
+                          {d.location || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {d.color || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {d.brand || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {d.state || 'N/A'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {d.description || 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
               {movements.length > 10 && (
