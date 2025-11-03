@@ -130,40 +130,14 @@ const Reports = () => {
     try {
       const { data, error } = await supabase
         .from('equipment_history')
-        .select('*')
+        .select(`*, profiles:profiles!equipment_history_changed_by_fkey (full_name), equipment:equipment!equipment_history_equipment_id_fkey (name)`) // join correcto
         .gte('created_at', startDate)
         .lte('created_at', endDate + 'T23:59:59')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Transformar los datos para que coincidan con MovementReport
-      const transformedMovements = (data || []).map(movement => ({
-        id: movement.id,
-        action: movement.action,
-        created_at: movement.created_at,
-        reason: movement.reason,
-        changed_by: movement.changed_by,
-        equipment_id: movement.equipment_id,
-        new_values: movement.new_values,
-        old_values: movement.old_values,
-        equipment: {
-          id: movement.equipment_id || '',
-          name: 'Equipo',
-          brand: '',
-          model: '',
-          serial_number: '',
-          description: '',
-          state: '',
-          location: '',
-          color: ''
-        },
-        profiles: {
-          full_name: 'Usuario'
-        }
-      }));
-
-      setMovements(transformedMovements);
+      setMovements(data || []);
     } catch (error) {
       console.error('Error fetching movements:', error);
       toast({
@@ -220,57 +194,31 @@ const Reports = () => {
       return;
     }
 
-    const exportData = lowStockItems.map((item, index) => ({
-      'N°': index + 1,
-      'NOMBRE DEL EQUIPO': item.name,
-      'CATEGORÍA': item.categories?.name || 'Sin categoría',
-      'MARCA': item.brand || 'N/A',
-      'MODELO': item.model || 'N/A',
-      'N° SERIE': item.serial_number || 'N/A',
-      'CANTIDAD DISPONIBLE': item.available_quantity,
-      'CANTIDAD TOTAL': item.quantity,
-      'ESTADO': getStateLabel(item.state),
-      'DESCRIPCIÓN': item.description || 'N/A',
+    const exportData = lowStockItems.map((item) => ({
+      'Producto': item.name,
+      'Categoría': item.categories?.name || 'Sin categoría',
+      'Marca/Modelo': item.brand ? (item.model ? `${item.brand}\n${item.model}` : item.brand) : (item.model || 'N/A'),
+      'N° Serie': item.serial_number || 'N/A',
+      'Disponible': item.available_quantity,
+      'Total': item.quantity,
+      'Estado': getStateLabel(item.state),
     }));
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
 
-    // Set column widths
     ws['!cols'] = [
-      { wch: 5 },   // N°
-      { wch: 35 },  // NOMBRE
-      { wch: 20 },  // CATEGORÍA
-      { wch: 15 },  // MARCA
-      { wch: 15 },  // MODELO
-      { wch: 15 },  // N° SERIE
-      { wch: 12 },  // CANTIDAD DISPONIBLE
-      { wch: 12 },  // CANTIDAD TOTAL
-      { wch: 15 },  // ESTADO
-      { wch: 40 },  // DESCRIPCIÓN
+      { wch: 18 }, // Producto
+      { wch: 22 }, // Categoría
+      { wch: 28 }, // Marca/Modelo
+      { wch: 20 }, // N° Serie
+      { wch: 10 }, // Disponible
+      { wch: 10 }, // Total
+      { wch: 16 }, // Estado
     ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Productos Bajo Stock');
 
-    // Style header row
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-      if (!ws[cellAddress]) continue;
-      ws[cellAddress].s = {
-        font: { bold: true },
-        fill: { fgColor: { rgb: "4472C4" } },
-        alignment: { horizontal: "center", vertical: "center" },
-      };
-    }
-
-    XLSX.utils.book_append_sheet(wb, ws, 'Bajo Stock');
-
-    const fileName = `Reporte_Bajo_Stock_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-
-    toast({
-      title: "Éxito",
-      description: "Reporte de bajo stock exportado correctamente",
-    });
+    XLSX.writeFile(wb, `productos-bajo-stock-${(new Date()).toISOString().slice(0, 10)}.xlsx`);
   };
 
   const exportMovementsToExcel = () => {
@@ -283,56 +231,31 @@ const Reports = () => {
       return;
     }
 
-    const exportData = movements.map((movement, index) => {
-      const d = movement.new_values || {};
+    const exportData = movements.map((movement: MovementReport) => {
       return {
-        'N° DE ORDEN': index + 1,
-        'CÓDIGO PATRIMONIAL': d.serial_number || 'N/A',
-        'DENOMINACIÓN': d.name || 'Equipo',
-        'UBICACIÓN': d.location || 'N/A',
-        'COLOR': d.color || 'N/A',
-        'MARCA': d.brand || 'N/A',
-        'ESTADO': d.state || 'N/A',
-        'OBSERVACIÓN': d.description || 'N/A',
+        'Fecha': new Date(movement.created_at).toLocaleDateString('es-ES'),
+        'Hora': new Date(movement.created_at).toLocaleTimeString('es-ES'),
+        'Equipo': movement.equipment?.name || (movement.action.includes('user') ? 'Gestión de Usuario' : 'Equipo eliminado'),
+        'Acción': getActionLabel(movement.action),
+        'Usuario': movement.profiles?.full_name || 'Usuario desconocido',
+        'Detalles del Cambio': getChangesDescription(movement),
       };
     });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
 
-    // Set column widths
     ws['!cols'] = [
-      { wch: 12 },  // N° DE ORDEN
-      { wch: 18 },  // CÓDIGO PATRIMONIAL
-      { wch: 35 },  // DENOMINACIÓN
-      { wch: 20 },  // UBICACIÓN
-      { wch: 15 },  // COLOR
-      { wch: 20 },  // MARCA
-      { wch: 15 },  // ESTADO
-      { wch: 40 },  // OBSERVACIÓN
+      { wch: 12 }, // Fecha
+      { wch: 12 }, // Hora
+      { wch: 26 }, // Equipo
+      { wch: 16 }, // Acción
+      { wch: 32 }, // Usuario
+      { wch: 48 }, // Detalles del Cambio
     ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Historial Movimientos');
 
-    // Style header row
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-      if (!ws[cellAddress]) continue;
-      ws[cellAddress].s = {
-        font: { bold: true },
-        fill: { fgColor: { rgb: "4472C4" } },
-        alignment: { horizontal: "center", vertical: "center" },
-      };
-    }
-
-    XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
-
-    const fileName = `Reporte_Movimientos_${startDate.replace(/-/g, '')}_${endDate.replace(/-/g, '')}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-
-    toast({
-      title: "Éxito",
-      description: "Reporte de movimientos exportado correctamente",
-    });
+    XLSX.writeFile(wb, `historial-movimientos-${(new Date()).toISOString().slice(0, 10)}.xlsx`);
   };
 
 
@@ -464,13 +387,63 @@ const Reports = () => {
     return labels[state as keyof typeof labels] || state;
   };
 
+  // --- lógica helper igual que Movements ---
   const getActionLabel = (action: string) => {
-    const labels = {
+    const labels: Record<string, string> = {
       create: 'Creación',
       update: 'Actualización',
       delete: 'Eliminación',
+      user_create: 'Usuario Creado',
+      user_delete: 'Usuario Eliminado',
+      user_status_change: 'Estado Usuario',
+      registry: 'Registro Equipo',
     };
     return labels[action as keyof typeof labels] || action;
+  };
+
+  const getChangesDescription = (movement: MovementReport) => {
+    if (movement.action === 'create') {
+      return 'Producto creado';
+    }
+    if (movement.action === 'delete') {
+      return 'Producto eliminado';
+    }
+    if (movement.action === 'user_create') {
+      return 'Usuario creado';
+    }
+    if (movement.action === 'user_delete') {
+      return 'Usuario eliminado';
+    }
+    if (movement.action === 'user_status_change') {
+      return 'Estado de usuario cambiado';
+    }
+    if (movement.action === 'registry') {
+      return 'Registro de equipo creado';
+    }
+    if (movement.action === 'update') {
+      const oldVals = movement.old_values || {};
+      const newVals = movement.new_values || {};
+      const changes: string[] = [];
+      Object.keys(newVals).forEach(key => {
+        if (oldVals[key] !== undefined && oldVals[key] !== newVals[key]) {
+          const fieldNames: Record<string, string> = {
+            available_quantity: 'Disponible',
+            quantity: 'Cantidad',
+            state: 'Estado',
+            brand: 'Marca',
+            model: 'Modelo',
+            description: 'Descripción',
+            full_name: 'Nombre completo',
+            role: 'Rol',
+            is_active: 'Estado activo',
+          };
+          const fieldName = fieldNames[key] || key;
+          changes.push(`${fieldName}: ${oldVals[key]} → ${newVals[key]}`);
+        }
+      });
+      return changes.length > 0 ? changes.join(', ') : 'Sin cambios detectados';
+    }
+    return 'Acción realizada';
   };
 
   return (
@@ -631,10 +604,10 @@ const Reports = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Reporte de Movimientos
+            Historial de Movimientos
           </CardTitle>
           <CardDescription>
-            Exporta movimientos filtrados por rango de fechas
+            {movements.length} movimientos encontrados
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -677,66 +650,37 @@ const Reports = () => {
               </Button>
             </div>
           </div>
-
-          {movements.length > 0 && (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>N° Orden</TableHead>
-                    <TableHead>Código Patrimonial</TableHead>
-                    <TableHead>Denominación</TableHead>
-                    <TableHead>Ubicación</TableHead>
-                    <TableHead>Color</TableHead>
-                    <TableHead>Marca</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Observación</TableHead>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Hora</TableHead>
+                  <TableHead>Equipo</TableHead>
+                  <TableHead>Acción</TableHead>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Detalles del Cambio</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {movements.map((movement: MovementReport) => (
+                  <TableRow key={movement.id}>
+                    <TableCell>{new Date(movement.created_at).toLocaleDateString('es-ES')}</TableCell>
+                    <TableCell>{new Date(movement.created_at).toLocaleTimeString('es-ES')}</TableCell>
+                    <TableCell>{movement.equipment?.name || (movement.action.includes('user') ? 'Gestión de Usuario' : 'Equipo eliminado')}</TableCell>
+                    <TableCell>{getActionLabel(movement.action)}</TableCell>
+                    <TableCell>{movement.profiles?.full_name || 'Usuario desconocido'}</TableCell>
+                    <TableCell>{getChangesDescription(movement)}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {movements.slice(0, 10).map((movement, index) => {
-                    // Usamos new_values como fuente principal (puedes ajustar a old_values si lo prefieres)
-                    const d = movement.new_values || {};
-                    return (
-                      <TableRow key={movement.id}>
-                        <TableCell className="font-medium">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell>
-                          {d.serial_number || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {d.name || 'Equipo'}
-                        </TableCell>
-                        <TableCell>
-                          {d.location || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {d.color || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {d.brand || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {d.state || 'N/A'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {d.description || 'N/A'}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              {movements.length > 10 && (
-                <div className="text-center py-2 text-sm text-muted-foreground border-t">
-                  Mostrando 10 de {movements.length} registros. Exporta para ver todos.
-                </div>
-              )}
-            </div>
-          )}
+                ))}
+              </TableBody>
+            </Table>
+            {movements.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No hay movimientos encontrados
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
