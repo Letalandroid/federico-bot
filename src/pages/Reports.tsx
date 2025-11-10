@@ -196,6 +196,7 @@ const Reports = () => {
 
     const exportData = lowStockItems.map((item) => ({
       'Producto': item.name,
+      'Descripcion': item.description,
       'Categoría': item.categories?.name || 'Sin categoría',
       'Marca/Modelo': item.brand ? (item.model ? `${item.brand}\n${item.model}` : item.brand) : (item.model || 'N/A'),
       'N° Serie': item.serial_number || 'N/A',
@@ -306,6 +307,7 @@ const Reports = () => {
     if (lowStockItems.length > 0) {
       const lowStockData = lowStockItems.map(item => ({
         'Nombre': item.name,
+        'Descripcion': item.description,
         'Categoría': item.categories?.name,
         'Marca': item.brand,
         'Modelo': item.model,
@@ -543,6 +545,7 @@ const Reports = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Producto</TableHead>
+                  <TableHead>Descripcion</TableHead>
                   <TableHead>Categoría</TableHead>
                   <TableHead>Marca/Modelo</TableHead>
                   <TableHead>N° Serie</TableHead>
@@ -556,6 +559,9 @@ const Reports = () => {
                   <TableRow key={item.id}>
                     <TableCell>
                       <div className="font-medium">{item.name}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{item.description}</div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
