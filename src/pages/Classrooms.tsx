@@ -37,6 +37,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Navigate } from 'react-router-dom';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Classroom {
   id: string;
@@ -284,6 +291,19 @@ const Classrooms = () => {
     return <Navigate to="/" replace />;
   }
 
+  // Opciones de ubicación
+  const ubicaciones = [
+    'Pabellón 1',
+    'Pabellón 1 segundo piso',
+    'Pabellón 1 tercer piso',
+    'Pabellón 2',
+    'Pabellón 3',
+    'Pabellón 3 segundo piso',
+    'Pabellón 4',
+    'Pabellón 4 segundo piso',
+    'Patio',
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -431,11 +451,16 @@ const Classrooms = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="location">Ubicación</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              />
+              <Select value={formData.location} onValueChange={(value) => setFormData({ ...formData, location: value })}>
+                <SelectTrigger id="location">
+                  <SelectValue placeholder="Selecciona ubicación" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ubicaciones.map((ubic) => (
+                    <SelectItem key={ubic} value={ubic}>{ubic}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="capacity">Capacidad</Label>
@@ -493,11 +518,16 @@ const Classrooms = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_location">Ubicación</Label>
-              <Input
-                id="edit_location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              />
+              <Select value={formData.location} onValueChange={(value) => setFormData({ ...formData, location: value })}>
+                <SelectTrigger id="edit_location">
+                  <SelectValue placeholder="Selecciona ubicación" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ubicaciones.map((ubic) => (
+                    <SelectItem key={ubic} value={ubic}>{ubic}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_capacity">Capacidad</Label>
