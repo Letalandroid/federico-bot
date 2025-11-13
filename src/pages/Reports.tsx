@@ -1,13 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { NumberInput } from '@/components/ui/number-input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { Download, FileSpreadsheet, Package, TrendingDown, Calendar, AlertTriangle, Users, BarChart3 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Download,
+  FileSpreadsheet,
+  Package,
+  TrendingDown,
+  Calendar,
+  AlertTriangle,
+  Users,
+  BarChart3,
+} from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Table,
   TableBody,
@@ -15,15 +30,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import * as XLSX from 'xlsx';
+} from "@/components/ui/select";
+import * as XLSX from "xlsx";
 
 interface LowStockItem {
   id: string;
@@ -61,7 +76,6 @@ interface MovementReport {
   } | null;
 }
 
-
 interface UserReport {
   id: string;
   full_name: string;
@@ -77,30 +91,32 @@ const Reports = () => {
   const [movements, setMovements] = useState<MovementReport[]>([]);
   const [users, setUsers] = useState<UserReport[]>([]);
   const [loading, setLoading] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [stockThreshold, setStockThreshold] = useState('10');
-  const [reportType, setReportType] = useState('inventory');
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [stockThreshold, setStockThreshold] = useState("10");
+  const [reportType, setReportType] = useState("inventory");
   const { toast } = useToast();
 
   const fetchLowStockItems = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('equipment')
-        .select(`
+        .from("equipment")
+        .select(
+          `
           *,
           categories (
             name
           )
-        `)
-        .lt('available_quantity', stockThreshold)
-        .order('available_quantity', { ascending: true });
+        `
+        )
+        .lt("available_quantity", stockThreshold)
+        .order("available_quantity", { ascending: true });
 
       if (error) throw error;
       setLowStockItems(data || []);
     } catch (error) {
-      console.error('Error fetching low stock items:', error);
+      console.error("Error fetching low stock items:", error);
       toast({
         title: "Error",
         description: "No se pudo cargar el reporte de bajo stock",
@@ -129,17 +145,19 @@ const Reports = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('equipment_history')
-        .select(`*, profiles:profiles!equipment_history_changed_by_fkey (full_name), equipment:equipment!equipment_history_equipment_id_fkey (name)`) // join correcto
-        .gte('created_at', startDate)
-        .lte('created_at', endDate + 'T23:59:59')
-        .order('created_at', { ascending: false });
+        .from("equipment_history")
+        .select(
+          `*, profiles:profiles!equipment_history_changed_by_fkey (full_name), equipment:equipment!equipment_history_equipment_id_fkey (name)`
+        ) // join correcto
+        .gte("created_at", startDate)
+        .lte("created_at", endDate + "T23:59:59")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       setMovements(data || []);
     } catch (error) {
-      console.error('Error fetching movements:', error);
+      console.error("Error fetching movements:", error);
       toast({
         title: "Error",
         description: "No se pudo cargar el reporte de movimientos",
@@ -150,30 +168,29 @@ const Reports = () => {
     }
   };
 
-
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       // Transformar los datos para que coincidan con UserReport
-      const transformedUsers = (data || []).map(user => ({
+      const transformedUsers = (data || []).map((user) => ({
         id: user.id,
-        full_name: user.full_name || '',
-        email: (user as { email?: string }).email || '',
-        role: 'tecnico', // Valor por defecto
+        full_name: user.full_name || "",
+        email: (user as { email?: string }).email || "",
+        role: "tecnico", // Valor por defecto
         created_at: user.created_at,
-        is_active: true // Valor por defecto
+        is_active: true, // Valor por defecto
       }));
 
       setUsers(transformedUsers);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
       toast({
         title: "Error",
         description: "No se pudo cargar el reporte de usuarios",
@@ -195,20 +212,24 @@ const Reports = () => {
     }
 
     const exportData = lowStockItems.map((item) => ({
-      'Producto': item.name,
-      'Descripcion': item.description,
-      'Categoría': item.categories?.name || 'Sin categoría',
-      'Marca/Modelo': item.brand ? (item.model ? `${item.brand}\n${item.model}` : item.brand) : (item.model || 'N/A'),
-      'N° Serie': item.serial_number || 'N/A',
-      'Disponible': item.available_quantity,
-      'Total': item.quantity,
-      'Estado': getStateLabel(item.state),
+      Producto: item.name,
+      Descripcion: item.description,
+      Categoría: item.categories?.name || "Sin categoría",
+      "Marca/Modelo": item.brand
+        ? item.model
+          ? `${item.brand}\n${item.model}`
+          : item.brand
+        : item.model || "N/A",
+      "N° Serie": item.serial_number || "N/A",
+      Disponible: item.available_quantity,
+      Total: item.quantity,
+      Estado: getStateLabel(item.state),
     }));
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
 
-    ws['!cols'] = [
+    ws["!cols"] = [
       { wch: 18 }, // Producto
       { wch: 22 }, // Categoría
       { wch: 28 }, // Marca/Modelo
@@ -217,16 +238,20 @@ const Reports = () => {
       { wch: 10 }, // Total
       { wch: 16 }, // Estado
     ];
-    XLSX.utils.book_append_sheet(wb, ws, 'Productos Bajo Stock');
+    XLSX.utils.book_append_sheet(wb, ws, "Productos Bajo Stock");
 
-    XLSX.writeFile(wb, `productos-bajo-stock-${(new Date()).toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `productos-bajo-stock-${new Date().toISOString().slice(0, 10)}.xlsx`
+    );
   };
 
   const exportMovementsToExcel = () => {
     if (movements.length === 0) {
       toast({
         title: "Sin datos",
-        description: "No hay movimientos para exportar en el rango seleccionado",
+        description:
+          "No hay movimientos para exportar en el rango seleccionado",
         variant: "destructive",
       });
       return;
@@ -234,19 +259,23 @@ const Reports = () => {
 
     const exportData = movements.map((movement: MovementReport) => {
       return {
-        'Fecha': new Date(movement.created_at).toLocaleDateString('es-ES'),
-        'Hora': new Date(movement.created_at).toLocaleTimeString('es-ES'),
-        'Equipo': movement.equipment?.name || (movement.action.includes('user') ? 'Gestión de Usuario' : 'Equipo eliminado'),
-        'Acción': getActionLabel(movement.action),
-        'Usuario': movement.profiles?.full_name || 'Usuario desconocido',
-        'Detalles del Cambio': getChangesDescription(movement),
+        Fecha: new Date(movement.created_at).toLocaleDateString("es-ES"),
+        Hora: new Date(movement.created_at).toLocaleTimeString("es-ES"),
+        Equipo:
+          movement.equipment?.name ||
+          (movement.action.includes("user")
+            ? "Gestión de Usuario"
+            : "Equipo eliminado"),
+        Acción: getActionLabel(movement.action),
+        Usuario: movement.profiles?.full_name || "Usuario desconocido",
+        "Detalles del Cambio": getChangesDescription(movement),
       };
     });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
 
-    ws['!cols'] = [
+    ws["!cols"] = [
       { wch: 12 }, // Fecha
       { wch: 12 }, // Hora
       { wch: 26 }, // Equipo
@@ -254,11 +283,13 @@ const Reports = () => {
       { wch: 32 }, // Usuario
       { wch: 48 }, // Detalles del Cambio
     ];
-    XLSX.utils.book_append_sheet(wb, ws, 'Historial Movimientos');
+    XLSX.utils.book_append_sheet(wb, ws, "Historial Movimientos");
 
-    XLSX.writeFile(wb, `historial-movimientos-${(new Date()).toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `historial-movimientos-${new Date().toISOString().slice(0, 10)}.xlsx`
+    );
   };
-
 
   const exportUsersToExcel = () => {
     if (users.length === 0) {
@@ -270,28 +301,33 @@ const Reports = () => {
       return;
     }
 
-    const exportData = users.map(user => ({
-      'Nombre': user.full_name,
-      'Email': user.email,
-      'Rol': user.role,
-      'Estado': user.is_active ? 'Activo' : 'Inactivo',
-      'Fecha Creación': new Date(user.created_at).toLocaleDateString('es-ES'),
-      'Último Acceso': user.last_sign_in_at 
-        ? new Date(user.last_sign_in_at).toLocaleDateString('es-ES')
-        : 'Nunca',
+    const exportData = users.map((user) => ({
+      Nombre: user.full_name,
+      Email: user.email,
+      Rol: user.role,
+      Estado: user.is_active ? "Activo" : "Inactivo",
+      "Fecha Creación": new Date(user.created_at).toLocaleDateString("es-ES"),
+      "Último Acceso": user.last_sign_in_at
+        ? new Date(user.last_sign_in_at).toLocaleDateString("es-ES")
+        : "Nunca",
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+    XLSX.utils.book_append_sheet(wb, ws, "Usuarios");
 
     // Auto-size columns
-    const colWidths = Object.keys(exportData[0] || {}).map(key => ({
-      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
+    const colWidths = Object.keys(exportData[0] || {}).map((key) => ({
+      wch: Math.max(
+        key.length,
+        ...exportData.map((row) => String(row[key as keyof typeof row]).length)
+      ),
     }));
-    ws['!cols'] = colWidths;
+    ws["!cols"] = colWidths;
 
-    const fileName = `Reporte_Usuarios_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `Reporte_Usuarios_${
+      new Date().toISOString().split("T")[0]
+    }.xlsx`;
     XLSX.writeFile(wb, fileName);
 
     toast({
@@ -305,60 +341,74 @@ const Reports = () => {
 
     // Low Stock Report
     if (lowStockItems.length > 0) {
-      const lowStockData = lowStockItems.map(item => ({
-        'Nombre': item.name,
-        'Descripcion': item.description,
-        'Categoría': item.categories?.name,
-        'Marca': item.brand,
-        'Modelo': item.model,
-        'Disponible': item.available_quantity,
-        'Total': item.quantity,
-        'Estado': item.state,
+      const lowStockData = lowStockItems.map((item) => ({
+        Nombre: item.name,
+        Descripcion: item.description,
+        Categoría: item.categories?.name,
+        Marca: item.brand,
+        Modelo: item.model,
+        Disponible: item.available_quantity,
+        Total: item.quantity,
+        Estado: item.state,
       }));
       const ws1 = XLSX.utils.json_to_sheet(lowStockData);
-      ws1['!cols'] = Object.keys(lowStockData[0] || {}).map(key => ({
-        wch: Math.max(key.length, ...lowStockData.map(row => String(row[key as keyof typeof row]).length))
+      ws1["!cols"] = Object.keys(lowStockData[0] || {}).map((key) => ({
+        wch: Math.max(
+          key.length,
+          ...lowStockData.map(
+            (row) => String(row[key as keyof typeof row]).length
+          )
+        ),
       }));
-      XLSX.utils.book_append_sheet(wb, ws1, 'Bajo Stock');
+      XLSX.utils.book_append_sheet(wb, ws1, "Bajo Stock");
     }
 
     // Movements Report
     if (movements.length > 0) {
-      const movementsData = movements.map(movement => ({
-        'Fecha': new Date(movement.created_at).toLocaleDateString('es-ES'),
-        'Hora': new Date(movement.created_at).toLocaleTimeString('es-ES'),
-        'Equipo': movement.equipment?.name || 'N/A',
-        'Acción': movement.action,
-        'Usuario': movement.profiles?.full_name || 'N/A',
+      const movementsData = movements.map((movement) => ({
+        Fecha: new Date(movement.created_at).toLocaleDateString("es-ES"),
+        Hora: new Date(movement.created_at).toLocaleTimeString("es-ES"),
+        Equipo: movement.equipment?.name || "N/A",
+        Acción: movement.action,
+        Usuario: movement.profiles?.full_name || "N/A",
       }));
       const ws2 = XLSX.utils.json_to_sheet(movementsData);
-      ws2['!cols'] = Object.keys(movementsData[0] || {}).map(key => ({
-        wch: Math.max(key.length, ...movementsData.map(row => String(row[key as keyof typeof row]).length))
+      ws2["!cols"] = Object.keys(movementsData[0] || {}).map((key) => ({
+        wch: Math.max(
+          key.length,
+          ...movementsData.map(
+            (row) => String(row[key as keyof typeof row]).length
+          )
+        ),
       }));
-      XLSX.utils.book_append_sheet(wb, ws2, 'Movimientos');
+      XLSX.utils.book_append_sheet(wb, ws2, "Movimientos");
     }
-
 
     // Users Report
     if (users.length > 0) {
-      const usersData = users.map(user => ({
-        'Nombre': user.full_name,
-        'Email': user.email,
-        'Rol': user.role,
-        'Estado': user.is_active ? 'Activo' : 'Inactivo',
-        'Fecha Creación': new Date(user.created_at).toLocaleDateString('es-ES'),
-        'Último Acceso': user.last_sign_in_at 
-          ? new Date(user.last_sign_in_at).toLocaleDateString('es-ES')
-          : 'Nunca',
+      const usersData = users.map((user) => ({
+        Nombre: user.full_name,
+        Email: user.email,
+        Rol: user.role,
+        Estado: user.is_active ? "Activo" : "Inactivo",
+        "Fecha Creación": new Date(user.created_at).toLocaleDateString("es-ES"),
+        "Último Acceso": user.last_sign_in_at
+          ? new Date(user.last_sign_in_at).toLocaleDateString("es-ES")
+          : "Nunca",
       }));
       const ws4 = XLSX.utils.json_to_sheet(usersData);
-      ws4['!cols'] = Object.keys(usersData[0] || {}).map(key => ({
-        wch: Math.max(key.length, ...usersData.map(row => String(row[key as keyof typeof row]).length))
+      ws4["!cols"] = Object.keys(usersData[0] || {}).map((key) => ({
+        wch: Math.max(
+          key.length,
+          ...usersData.map((row) => String(row[key as keyof typeof row]).length)
+        ),
       }));
-      XLSX.utils.book_append_sheet(wb, ws4, 'Usuarios');
+      XLSX.utils.book_append_sheet(wb, ws4, "Usuarios");
     }
 
-    const fileName = `Reporte_Completo_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `Reporte_Completo_${
+      new Date().toISOString().split("T")[0]
+    }.xlsx`;
     XLSX.writeFile(wb, fileName);
 
     toast({
@@ -369,22 +419,22 @@ const Reports = () => {
 
   const getStateColor = (state: string) => {
     const colors = {
-      disponible: 'bg-success text-success-foreground',
-      en_uso: 'bg-warning text-warning-foreground',
-      mantenimiento: 'bg-info text-info-foreground',
-      dañado: 'bg-destructive text-destructive-foreground',
-      baja: 'bg-muted text-muted-foreground',
+      disponible: "bg-success text-success-foreground",
+      en_uso: "bg-warning text-warning-foreground",
+      mantenimiento: "bg-info text-info-foreground",
+      dañado: "bg-destructive text-destructive-foreground",
+      baja: "bg-muted text-muted-foreground",
     };
-    return colors[state as keyof typeof colors] || 'bg-secondary';
+    return colors[state as keyof typeof colors] || "bg-secondary";
   };
 
   const getStateLabel = (state: string) => {
     const labels = {
-      disponible: 'Disponible',
-      en_uso: 'En Uso',
-      mantenimiento: 'Mantenimiento',
-      dañado: 'Dañado',
-      baja: 'Baja',
+      disponible: "Disponible",
+      en_uso: "En Uso",
+      mantenimiento: "Mantenimiento",
+      dañado: "Dañado",
+      baja: "Baja",
     };
     return labels[state as keyof typeof labels] || state;
   };
@@ -392,60 +442,60 @@ const Reports = () => {
   // --- lógica helper igual que Movements ---
   const getActionLabel = (action: string) => {
     const labels: Record<string, string> = {
-      create: 'Creación',
-      update: 'Actualización',
-      delete: 'Eliminación',
-      user_create: 'Usuario Creado',
-      user_delete: 'Usuario Eliminado',
-      user_status_change: 'Estado Usuario',
-      registry: 'Registro Equipo',
+      create: "Creación",
+      update: "Actualización",
+      delete: "Eliminación",
+      user_create: "Usuario Creado",
+      user_delete: "Usuario Eliminado",
+      user_status_change: "Estado Usuario",
+      registry: "Registro Equipo",
     };
     return labels[action as keyof typeof labels] || action;
   };
 
   const getChangesDescription = (movement: MovementReport) => {
-    if (movement.action === 'create') {
-      return 'Producto creado';
+    if (movement.action === "create") {
+      return "Producto creado";
     }
-    if (movement.action === 'delete') {
-      return 'Producto eliminado';
+    if (movement.action === "delete") {
+      return "Producto eliminado";
     }
-    if (movement.action === 'user_create') {
-      return 'Usuario creado';
+    if (movement.action === "user_create") {
+      return "Usuario creado";
     }
-    if (movement.action === 'user_delete') {
-      return 'Usuario eliminado';
+    if (movement.action === "user_delete") {
+      return "Usuario eliminado";
     }
-    if (movement.action === 'user_status_change') {
-      return 'Estado de usuario cambiado';
+    if (movement.action === "user_status_change") {
+      return "Estado de usuario cambiado";
     }
-    if (movement.action === 'registry') {
-      return 'Registro de equipo creado';
+    if (movement.action === "registry") {
+      return "Registro de equipo creado";
     }
-    if (movement.action === 'update') {
+    if (movement.action === "update") {
       const oldVals = movement.old_values || {};
       const newVals = movement.new_values || {};
       const changes: string[] = [];
-      Object.keys(newVals).forEach(key => {
+      Object.keys(newVals).forEach((key) => {
         if (oldVals[key] !== undefined && oldVals[key] !== newVals[key]) {
           const fieldNames: Record<string, string> = {
-            available_quantity: 'Disponible',
-            quantity: 'Cantidad',
-            state: 'Estado',
-            brand: 'Marca',
-            model: 'Modelo',
-            description: 'Descripción',
-            full_name: 'Nombre completo',
-            role: 'Rol',
-            is_active: 'Estado activo',
+            available_quantity: "Disponible",
+            quantity: "Cantidad",
+            state: "Estado",
+            brand: "Marca",
+            model: "Modelo",
+            description: "Descripción",
+            full_name: "Nombre completo",
+            role: "Rol",
+            is_active: "Estado activo",
           };
           const fieldName = fieldNames[key] || key;
           changes.push(`${fieldName}: ${oldVals[key]} → ${newVals[key]}`);
         }
       });
-      return changes.length > 0 ? changes.join(', ') : 'Sin cambios detectados';
+      return changes.length > 0 ? changes.join(", ") : "Sin cambios detectados";
     }
-    return 'Acción realizada';
+    return "Acción realizada";
   };
 
   return (
@@ -458,14 +508,14 @@ const Reports = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
+          {/* <Button
             onClick={fetchUsers}
             variant="outline"
             className="flex items-center gap-2"
           >
             <Users className="h-4 w-4" />
             Cargar Usuarios
-          </Button>
+          </Button> */}
           <Button
             onClick={exportComprehensiveReport}
             className="flex items-center gap-2"
@@ -565,18 +615,20 @@ const Reports = () => {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {item.categories?.name || 'Sin categoría'}
+                        {item.categories?.name || "Sin categoría"}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{item.brand || 'N/A'}</div>
-                        <div className="text-muted-foreground">{item.model || 'N/A'}</div>
+                        <div>{item.brand || "N/A"}</div>
+                        <div className="text-muted-foreground">
+                          {item.model || "N/A"}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm font-mono">
-                        {item.serial_number || 'N/A'}
+                        {item.serial_number || "N/A"}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -671,11 +723,26 @@ const Reports = () => {
               <TableBody>
                 {movements.map((movement: MovementReport) => (
                   <TableRow key={movement.id}>
-                    <TableCell>{new Date(movement.created_at).toLocaleDateString('es-ES')}</TableCell>
-                    <TableCell>{new Date(movement.created_at).toLocaleTimeString('es-ES')}</TableCell>
-                    <TableCell>{movement.equipment?.name || (movement.action.includes('user') ? 'Gestión de Usuario' : 'Equipo eliminado')}</TableCell>
+                    <TableCell>
+                      {new Date(movement.created_at).toLocaleDateString(
+                        "es-ES"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(movement.created_at).toLocaleTimeString(
+                        "es-ES"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {movement.equipment?.name ||
+                        (movement.action.includes("user")
+                          ? "Gestión de Usuario"
+                          : "Equipo eliminado")}
+                    </TableCell>
                     <TableCell>{getActionLabel(movement.action)}</TableCell>
-                    <TableCell>{movement.profiles?.full_name || 'Usuario desconocido'}</TableCell>
+                    <TableCell>
+                      {movement.profiles?.full_name || "Usuario desconocido"}
+                    </TableCell>
                     <TableCell>{getChangesDescription(movement)}</TableCell>
                   </TableRow>
                 ))}
@@ -690,18 +757,15 @@ const Reports = () => {
         </CardContent>
       </Card>
 
-
       {/* Users Report */}
-      {reportType === 'users' && (
+      {reportType === "users" && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
               Reporte de Usuarios
             </CardTitle>
-            <CardDescription>
-              Lista de usuarios del sistema
-            </CardDescription>
+            <CardDescription>Lista de usuarios del sistema</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-end">
@@ -732,26 +796,31 @@ const Reports = () => {
                   <TableBody>
                     {users.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.full_name}</TableCell>
+                        <TableCell className="font-medium">
+                          {user.full_name}
+                        </TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">
-                            {user.role}
+                          <Badge variant="outline">{user.role}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={user.is_active ? "default" : "secondary"}
+                          >
+                            {user.is_active ? "Activo" : "Inactivo"}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={user.is_active ? "default" : "secondary"}>
-                            {user.is_active ? 'Activo' : 'Inactivo'}
-                          </Badge>
+                          {new Date(user.created_at).toLocaleDateString(
+                            "es-ES"
+                          )}
                         </TableCell>
                         <TableCell>
-                          {new Date(user.created_at).toLocaleDateString('es-ES')}
-                        </TableCell>
-                        <TableCell>
-                          {user.last_sign_in_at 
-                            ? new Date(user.last_sign_in_at).toLocaleDateString('es-ES')
-                            : 'Nunca'
-                          }
+                          {user.last_sign_in_at
+                            ? new Date(user.last_sign_in_at).toLocaleDateString(
+                                "es-ES"
+                              )
+                            : "Nunca"}
                         </TableCell>
                       </TableRow>
                     ))}

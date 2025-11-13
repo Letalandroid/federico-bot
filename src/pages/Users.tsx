@@ -1,13 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useRole } from '@/hooks/useRole';
-import { Plus, Trash2, UserPlus, Shield, Loader2, GraduationCap, Edit, MoreHorizontal } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
+import {
+  Plus,
+  Trash2,
+  UserPlus,
+  Shield,
+  Loader2,
+  GraduationCap,
+  Edit,
+  MoreHorizontal,
+} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,7 +30,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -23,14 +38,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,14 +55,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Navigate } from 'react-router-dom';
+} from "@/components/ui/dropdown-menu";
+import { Navigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 
 interface UserData {
   id: string;
@@ -67,62 +83,86 @@ const Users = () => {
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    full_name: '',
-    role: 'tecnico' as 'administrador' | 'tecnico',
+    email: "",
+    password: "",
+    full_name: "",
+    role: "tecnico" as "administrador" | "tecnico",
   });
 
   const [teacherFormData, setTeacherFormData] = useState({
-    full_name: '',
-    dni: '',
-    email: '',
-    phone: '',
-    status: 'activo' as 'activo' | 'baja',
+    full_name: "",
+    dni: "",
+    email: "",
+    phone: "",
+    status: "activo" as "activo" | "baja",
   });
 
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [isEditTeacherModalOpen, setIsEditTeacherModalOpen] = useState(false);
-  const [teacherToEdit, setTeacherToEdit] = useState<{id: string; full_name: string; dni: string; email?: string; phone?: string; status: 'activo' | 'baja'} | null>(null);
-  const [teachers, setTeachers] = useState<Array<{id: string; full_name: string; dni: string; email?: string; phone?: string; status: 'activo' | 'baja'; has_movements?: boolean}>>([]);
+  const [teacherToEdit, setTeacherToEdit] = useState<{
+    id: string;
+    full_name: string;
+    dni: string;
+    email?: string;
+    phone?: string;
+    status: "activo" | "baja";
+  } | null>(null);
+  const [teachers, setTeachers] = useState<
+    Array<{
+      id: string;
+      full_name: string;
+      dni: string;
+      email?: string;
+      phone?: string;
+      status: "activo" | "baja";
+      has_movements?: boolean;
+    }>
+  >([]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select(`
+        .from("profiles")
+        .select(
+          `
           id,
           full_name,
           role,
           created_at
-        `)
-        .order('created_at', { ascending: false });
+        `
+        )
+        .order("created_at", { ascending: false });
 
       if (profilesError) throw profilesError;
 
       const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
+        .from("user_roles")
+        .select("user_id, role");
 
       if (rolesError) throw rolesError;
 
-      const usersWithRoles = profiles?.map(profile => {
-        const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
-        
-        return {
-          id: profile.id,
-          full_name: profile.full_name,
-          role: profile.role,
-          created_at: profile.created_at,
-          roles: userRoles,
-        };
-      }) || [];
+      const usersWithRoles =
+        profiles?.map((profile) => {
+          const userRoles =
+            rolesData?.filter((r) => r.user_id === profile.id) || [];
+
+          return {
+            id: profile.id,
+            full_name: profile.full_name,
+            role: profile.role,
+            created_at: profile.created_at,
+            roles: userRoles,
+          };
+        }) || [];
 
       setUsers(usersWithRoles);
     } catch (error: unknown) {
-      console.error('Error fetching users:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo cargar la lista de usuarios";
+      console.error("Error fetching users:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar la lista de usuarios";
       toast({
         title: "Error",
         description: errorMessage,
@@ -143,8 +183,9 @@ const Users = () => {
   const fetchTeachers = async () => {
     try {
       const { data, error } = await supabase
-        .from('teachers')
-        .select(`
+        .from("teachers")
+        .select(
+          `
           id, 
           full_name, 
           dni, 
@@ -152,25 +193,26 @@ const Users = () => {
           phone,
           status,
           movements:movements(id)
-        `)
-        .order('full_name');
+        `
+        )
+        .order("full_name");
 
       if (error) throw error;
 
       // Procesar los datos para incluir información sobre movimientos
-      const teachersWithMovements = (data || []).map(teacher => ({
+      const teachersWithMovements = (data || []).map((teacher) => ({
         id: teacher.id,
         full_name: teacher.full_name,
         dni: teacher.dni,
         email: teacher.email,
         phone: teacher.phone,
-        status: teacher.status || 'activo',
-        has_movements: teacher.movements && teacher.movements.length > 0
+        status: teacher.status || "activo",
+        has_movements: teacher.movements && teacher.movements.length > 0,
       }));
 
       setTeachers(teachersWithMovements);
     } catch (error) {
-      console.error('Error fetching teachers:', error);
+      console.error("Error fetching teachers:", error);
     }
   };
 
@@ -202,12 +244,10 @@ const Users = () => {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: data.user.id,
-            role: formData.role,
-          });
+        const { error: roleError } = await supabase.from("user_roles").insert({
+          user_id: data.user.id,
+          role: formData.role,
+        });
 
         if (roleError) throw roleError;
       }
@@ -218,11 +258,12 @@ const Users = () => {
       });
 
       setIsModalOpen(false);
-      setFormData({ email: '', password: '', full_name: '', role: 'tecnico' });
+      setFormData({ email: "", password: "", full_name: "", role: "tecnico" });
       fetchUsers();
     } catch (error: unknown) {
-      console.error('Error creating user:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo crear el usuario";
+      console.error("Error creating user:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "No se pudo crear el usuario";
       toast({
         title: "Error",
         description: errorMessage,
@@ -233,11 +274,10 @@ const Users = () => {
     }
   };
 
-
   const getRoleBadgeColor = (role: string) => {
-    return role === 'administrador' 
-      ? 'bg-primary text-primary-foreground' 
-      : 'bg-secondary text-secondary-foreground';
+    return role === "administrador"
+      ? "bg-primary text-primary-foreground"
+      : "bg-secondary text-secondary-foreground";
   };
 
   const handleCreateTeacher = async (e: React.FormEvent) => {
@@ -254,15 +294,13 @@ const Users = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('teachers')
-        .insert({
-          full_name: teacherFormData.full_name,
-          dni: teacherFormData.dni,
-          email: teacherFormData.email || null,
-          phone: teacherFormData.phone || null,
-          status: teacherFormData.status,
-        });
+      const { error } = await supabase.from("teachers").insert({
+        full_name: teacherFormData.full_name,
+        dni: teacherFormData.dni,
+        email: teacherFormData.email || null,
+        phone: teacherFormData.phone || null,
+        status: teacherFormData.status,
+      });
 
       if (error) throw error;
 
@@ -272,11 +310,18 @@ const Users = () => {
       });
 
       setIsTeacherModalOpen(false);
-      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '', status: 'activo' });
+      setTeacherFormData({
+        full_name: "",
+        dni: "",
+        email: "",
+        phone: "",
+        status: "activo",
+      });
       fetchTeachers();
     } catch (error: unknown) {
-      console.error('Error creating teacher:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo crear el docente";
+      console.error("Error creating teacher:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "No se pudo crear el docente";
       toast({
         title: "Error",
         description: errorMessage,
@@ -287,13 +332,20 @@ const Users = () => {
     }
   };
 
-  const handleEditTeacher = (teacher: {id: string; full_name: string; dni: string; email?: string; phone?: string; status: 'activo' | 'baja'}) => {
+  const handleEditTeacher = (teacher: {
+    id: string;
+    full_name: string;
+    dni: string;
+    email?: string;
+    phone?: string;
+    status: "activo" | "baja";
+  }) => {
     setTeacherToEdit(teacher);
     setTeacherFormData({
       full_name: teacher.full_name,
       dni: teacher.dni,
-      email: teacher.email || '',
-      phone: teacher.phone || '',
+      email: teacher.email || "",
+      phone: teacher.phone || "",
       status: teacher.status,
     });
     setIsEditTeacherModalOpen(true);
@@ -315,7 +367,7 @@ const Users = () => {
     setLoading(true);
     try {
       const { error } = await supabase
-        .from('teachers')
+        .from("teachers")
         .update({
           full_name: teacherFormData.full_name,
           dni: teacherFormData.dni,
@@ -323,7 +375,7 @@ const Users = () => {
           phone: teacherFormData.phone || null,
           status: teacherFormData.status,
         })
-        .eq('id', teacherToEdit.id);
+        .eq("id", teacherToEdit.id);
 
       if (error) throw error;
 
@@ -334,11 +386,20 @@ const Users = () => {
 
       setIsEditTeacherModalOpen(false);
       setTeacherToEdit(null);
-      setTeacherFormData({ full_name: '', dni: '', email: '', phone: '', status: 'activo' });
+      setTeacherFormData({
+        full_name: "",
+        dni: "",
+        email: "",
+        phone: "",
+        status: "activo",
+      });
       fetchTeachers();
     } catch (error: unknown) {
-      console.error('Error updating teacher:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo actualizar el docente";
+      console.error("Error updating teacher:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar el docente";
       toast({
         title: "Error",
         description: errorMessage,
@@ -354,9 +415,9 @@ const Users = () => {
     try {
       // Primero verificar si el docente tiene movimientos asociados
       const { data: movements, error: movementsError } = await supabase
-        .from('movements')
-        .select('id')
-        .eq('teacher_id', teacherId)
+        .from("movements")
+        .select("id")
+        .eq("teacher_id", teacherId)
         .limit(1);
 
       if (movementsError) throw movementsError;
@@ -364,7 +425,8 @@ const Users = () => {
       if (movements && movements.length > 0) {
         toast({
           title: "No se puede eliminar",
-          description: "Este docente tiene préstamos asociados. No se puede eliminar.",
+          description:
+            "Este docente tiene préstamos asociados. No se puede eliminar.",
           variant: "destructive",
         });
         return;
@@ -372,9 +434,9 @@ const Users = () => {
 
       // Si no hay movimientos, proceder con la eliminación
       const { error } = await supabase
-        .from('teachers')
+        .from("teachers")
         .delete()
-        .eq('id', teacherId);
+        .eq("id", teacherId);
 
       if (error) throw error;
 
@@ -385,8 +447,11 @@ const Users = () => {
 
       fetchTeachers();
     } catch (error: unknown) {
-      console.error('Error deleting teacher:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo eliminar el docente";
+      console.error("Error deleting teacher:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar el docente";
       toast({
         title: "Error",
         description: errorMessage,
@@ -404,17 +469,17 @@ const Users = () => {
     try {
       // Delete from user_roles first
       const { error: roleError } = await supabase
-        .from('user_roles')
+        .from("user_roles")
         .delete()
-        .eq('user_id', userToDelete.id);
+        .eq("user_id", userToDelete.id);
 
       if (roleError) throw roleError;
 
       // Delete from profiles
       const { error: profileError } = await supabase
-        .from('profiles')
+        .from("profiles")
         .delete()
-        .eq('id', userToDelete.id);
+        .eq("id", userToDelete.id);
 
       if (profileError) throw profileError;
 
@@ -427,8 +492,11 @@ const Users = () => {
       setUserToDelete(null);
       fetchUsers();
     } catch (error: unknown) {
-      console.error('Error deleting user:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo eliminar el usuario";
+      console.error("Error deleting user:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar el usuario";
       toast({
         title: "Error",
         description: errorMessage,
@@ -440,7 +508,55 @@ const Users = () => {
   };
 
   const getRoleLabel = (role: string) => {
-    return role === 'administrador' ? 'Administrador' : 'Técnico';
+    return role === "administrador" ? "Administrador" : "Técnico";
+  };
+
+  const exportUsersToExcel = () => {
+    const exportData = users.map((user) => ({
+      "Nombre Completo": user.full_name,
+      Rol: user.role,
+      "Fecha de Registro": new Date(user.created_at).toLocaleDateString(
+        "es-ES"
+      ),
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    ws["!cols"] = [
+      { wch: 32 }, // Nombre Completo
+      { wch: 12 }, // Rol
+      { wch: 18 }, // Fecha
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "Usuarios del Sistema");
+    XLSX.writeFile(
+      wb,
+      `usuarios-sistema-${new Date().toISOString().slice(0, 10)}.xlsx`
+    );
+  };
+
+  const exportTeachersToExcel = () => {
+    const exportData = teachers.map((teacher) => ({
+      "Nombre Completo": teacher.full_name,
+      DNI: teacher.dni,
+      "Correo Electrónico": teacher.email || "N/A",
+      Teléfono: teacher.phone || "N/A",
+      Estado: teacher.status === "activo" ? "Activo" : "De Baja",
+      Préstamos: teacher.has_movements ? "Sí" : "No",
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    ws["!cols"] = [
+      { wch: 32 }, // Nombre Completo
+      { wch: 12 }, // DNI
+      { wch: 26 }, // Correo
+      { wch: 14 }, // Teléfono
+      { wch: 12 }, // Estado
+      { wch: 8 }, // Préstamos
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "Docentes Registrados");
+    XLSX.writeFile(
+      wb,
+      `docentes-registrados-${new Date().toISOString().slice(0, 10)}.xlsx`
+    );
   };
 
   if (roleLoading) {
@@ -457,35 +573,55 @@ const Users = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">
+            Gestión de Usuarios
+          </h1>
+          <p className="text-muted-foreground">
+            Administra los usuarios del sistema y docentes
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setIsTeacherModalOpen(true)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <GraduationCap className="h-4 w-4" />
+            Agregar Docente
+          </Button>
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Agregar Usuario
+          </Button>
+        </div>
+      </div>
+
+      <Card>
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Gestión de Usuarios</h1>
-            <p className="text-muted-foreground">
-              Administra los usuarios del sistema y docentes
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setIsTeacherModalOpen(true)} variant="outline" className="flex items-center gap-2">
-              <GraduationCap className="h-4 w-4" />
-              Agregar Docente
-            </Button>
-            <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Agregar Usuario
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Usuarios del Sistema
+            </CardTitle>
+            <CardDescription>
+              Lista de todos los usuarios registrados
+            </CardDescription>
+          </CardHeader>
+          <div className="flex mr-6 pb-2">
+            <Button
+              onClick={exportUsersToExcel}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              Exportar Usuarios a Excel
             </Button>
           </div>
         </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Usuarios del Sistema
-          </CardTitle>
-          <CardDescription>
-            Lista de todos los usuarios registrados
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex justify-center py-8">
@@ -510,7 +646,7 @@ const Users = () => {
                       </TableCell>
                       <TableCell>{user.role}</TableCell>
                       <TableCell>
-                        {new Date(user.created_at).toLocaleDateString('es-ES')}
+                        {new Date(user.created_at).toLocaleDateString("es-ES")}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -540,15 +676,26 @@ const Users = () => {
 
       {/* Sección de Docentes */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5" />
-            Docentes Registrados
-          </CardTitle>
-          <CardDescription>
-            Lista de docentes registrados en el sistema
-          </CardDescription>
-        </CardHeader>
+        <div className="flex items-center justify-between">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5" />
+              Docentes Registrados
+            </CardTitle>
+            <CardDescription>
+              Lista de docentes registrados en el sistema
+            </CardDescription>
+          </CardHeader>
+          <div className="flex mr-6 pb-2">
+            <Button
+              onClick={exportTeachersToExcel}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              Exportar Docentes a Excel
+            </Button>
+          </div>
+        </div>
         <CardContent>
           {loading ? (
             <div className="flex justify-center py-8">
@@ -581,14 +728,22 @@ const Users = () => {
                         </div>
                       </TableCell>
                       <TableCell>{teacher.dni}</TableCell>
-                      <TableCell>{teacher.email || 'N/A'}</TableCell>
-                      <TableCell>{teacher.phone || 'N/A'}</TableCell>
+                      <TableCell>{teacher.email || "N/A"}</TableCell>
+                      <TableCell>{teacher.phone || "N/A"}</TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={teacher.status === 'activo' ? 'default' : 'secondary'}
-                          className={teacher.status === 'activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+                        <Badge
+                          variant={
+                            teacher.status === "activo"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className={
+                            teacher.status === "activo"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }
                         >
-                          {teacher.status === 'activo' ? 'Activo' : 'De Baja'}
+                          {teacher.status === "activo" ? "Activo" : "De Baja"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -599,17 +754,25 @@ const Users = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditTeacher(teacher)}>
+                            <DropdownMenuItem
+                              onClick={() => handleEditTeacher(teacher)}
+                            >
                               <Edit className="mr-2 h-4 w-4" />
                               Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleDeleteTeacher(teacher.id)}
-                              className={teacher.has_movements ? "text-muted-foreground cursor-not-allowed" : "text-destructive"}
+                              className={
+                                teacher.has_movements
+                                  ? "text-muted-foreground cursor-not-allowed"
+                                  : "text-destructive"
+                              }
                               disabled={teacher.has_movements}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
-                              {teacher.has_movements ? "No se puede eliminar" : "Eliminar"}
+                              {teacher.has_movements
+                                ? "No se puede eliminar"
+                                : "Eliminar"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -642,7 +805,9 @@ const Users = () => {
               <Input
                 id="full_name"
                 value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, full_name: e.target.value })
+                }
                 required
               />
             </div>
@@ -652,7 +817,9 @@ const Users = () => {
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
                 required
               />
             </div>
@@ -662,7 +829,9 @@ const Users = () => {
                 id="password"
                 type="password"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
                 required
                 minLength={6}
               />
@@ -671,7 +840,7 @@ const Users = () => {
               <Label htmlFor="role">Rol</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value: 'administrador' | 'tecnico') => 
+                onValueChange={(value: "administrador" | "tecnico") =>
                   setFormData({ ...formData, role: value })
                 }
               >
@@ -716,7 +885,12 @@ const Users = () => {
               <Input
                 id="teacher_full_name"
                 value={teacherFormData.full_name}
-                onChange={(e) => setTeacherFormData({ ...teacherFormData, full_name: e.target.value })}
+                onChange={(e) =>
+                  setTeacherFormData({
+                    ...teacherFormData,
+                    full_name: e.target.value,
+                  })
+                }
                 required
               />
             </div>
@@ -725,17 +899,29 @@ const Users = () => {
               <Input
                 id="teacher_dni"
                 value={teacherFormData.dni}
-                onChange={(e) => setTeacherFormData({ ...teacherFormData, dni: e.target.value })}
+                onChange={(e) =>
+                  setTeacherFormData({
+                    ...teacherFormData,
+                    dni: e.target.value,
+                  })
+                }
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="teacher_email">Correo Electrónico (Opcional)</Label>
+              <Label htmlFor="teacher_email">
+                Correo Electrónico (Opcional)
+              </Label>
               <Input
                 id="teacher_email"
                 type="email"
                 value={teacherFormData.email}
-                onChange={(e) => setTeacherFormData({ ...teacherFormData, email: e.target.value })}
+                onChange={(e) =>
+                  setTeacherFormData({
+                    ...teacherFormData,
+                    email: e.target.value,
+                  })
+                }
               />
             </div>
             <div className="space-y-2">
@@ -743,14 +929,19 @@ const Users = () => {
               <Input
                 id="teacher_phone"
                 value={teacherFormData.phone}
-                onChange={(e) => setTeacherFormData({ ...teacherFormData, phone: e.target.value })}
+                onChange={(e) =>
+                  setTeacherFormData({
+                    ...teacherFormData,
+                    phone: e.target.value,
+                  })
+                }
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="teacher_status">Estado</Label>
               <Select
                 value={teacherFormData.status}
-                onValueChange={(value: 'activo' | 'baja') => 
+                onValueChange={(value: "activo" | "baja") =>
                   setTeacherFormData({ ...teacherFormData, status: value })
                 }
               >
@@ -780,17 +971,25 @@ const Users = () => {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. El usuario "{userToDelete?.full_name}" será eliminado permanentemente del sistema.
+              Esta acción no se puede deshacer. El usuario "
+              {userToDelete?.full_name}" será eliminado permanentemente del
+              sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-destructive hover:bg-destructive/90"
+            >
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -798,7 +997,10 @@ const Users = () => {
       </AlertDialog>
 
       {/* Modal para editar docente */}
-      <Dialog open={isEditTeacherModalOpen} onOpenChange={setIsEditTeacherModalOpen}>
+      <Dialog
+        open={isEditTeacherModalOpen}
+        onOpenChange={setIsEditTeacherModalOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar Docente</DialogTitle>
@@ -812,7 +1014,12 @@ const Users = () => {
               <Input
                 id="edit_full_name"
                 value={teacherFormData.full_name}
-                onChange={(e) => setTeacherFormData({ ...teacherFormData, full_name: e.target.value })}
+                onChange={(e) =>
+                  setTeacherFormData({
+                    ...teacherFormData,
+                    full_name: e.target.value,
+                  })
+                }
                 required
               />
             </div>
@@ -821,7 +1028,12 @@ const Users = () => {
               <Input
                 id="edit_dni"
                 value={teacherFormData.dni}
-                onChange={(e) => setTeacherFormData({ ...teacherFormData, dni: e.target.value })}
+                onChange={(e) =>
+                  setTeacherFormData({
+                    ...teacherFormData,
+                    dni: e.target.value,
+                  })
+                }
                 required
               />
             </div>
@@ -831,7 +1043,12 @@ const Users = () => {
                 id="edit_email"
                 type="email"
                 value={teacherFormData.email}
-                onChange={(e) => setTeacherFormData({ ...teacherFormData, email: e.target.value })}
+                onChange={(e) =>
+                  setTeacherFormData({
+                    ...teacherFormData,
+                    email: e.target.value,
+                  })
+                }
               />
             </div>
             <div className="space-y-2">
@@ -839,14 +1056,19 @@ const Users = () => {
               <Input
                 id="edit_phone"
                 value={teacherFormData.phone}
-                onChange={(e) => setTeacherFormData({ ...teacherFormData, phone: e.target.value })}
+                onChange={(e) =>
+                  setTeacherFormData({
+                    ...teacherFormData,
+                    phone: e.target.value,
+                  })
+                }
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_status">Estado</Label>
               <Select
                 value={teacherFormData.status}
-                onValueChange={(value: 'activo' | 'baja') => 
+                onValueChange={(value: "activo" | "baja") =>
                   setTeacherFormData({ ...teacherFormData, status: value })
                 }
               >
@@ -866,7 +1088,13 @@ const Users = () => {
                 onClick={() => {
                   setIsEditTeacherModalOpen(false);
                   setTeacherToEdit(null);
-                  setTeacherFormData({ full_name: '', dni: '', email: '', phone: '', status: 'activo' });
+                  setTeacherFormData({
+                    full_name: "",
+                    dni: "",
+                    email: "",
+                    phone: "",
+                    status: "activo",
+                  });
                 }}
               >
                 Cancelar
@@ -879,7 +1107,6 @@ const Users = () => {
           </form>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 };
