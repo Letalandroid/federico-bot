@@ -227,7 +227,8 @@ const Reports = () => {
     }));
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    const ws = XLSX.utils.json_to_sheet(exportData, { origin: "A3" });
+    ws["A1"] = { v: "Productos con Bajo Stock", t: "s" };
 
     ws["!cols"] = [
       { wch: 18 }, // Producto
@@ -273,7 +274,8 @@ const Reports = () => {
     });
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    const ws = XLSX.utils.json_to_sheet(exportData, { origin: "A3" });
+    ws["A1"] = { v: "Historial de Movimientos", t: "s" };
 
     ws["!cols"] = [
       { wch: 12 }, // Fecha

@@ -520,7 +520,8 @@ const Users = () => {
       ),
     }));
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    const ws = XLSX.utils.json_to_sheet(exportData, { origin: "A3" });
+    ws["A1"] = { v: "Gestión de usuarios", t: "s" };
     ws["!cols"] = [
       { wch: 32 }, // Nombre Completo
       { wch: 12 }, // Rol
@@ -543,7 +544,8 @@ const Users = () => {
       Préstamos: teacher.has_movements ? "Sí" : "No",
     }));
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    const ws = XLSX.utils.json_to_sheet(exportData, { origin: "A3" });
+    ws["A1"] = { v: "Gestión de Docentes", t: "s" };
     ws["!cols"] = [
       { wch: 32 }, // Nombre Completo
       { wch: 12 }, // DNI
