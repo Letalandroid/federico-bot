@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Search, Calendar, User, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -51,21 +51,13 @@ const Movements = () => {
 
   const fetchMovements = async () => {
     try {
-      const { data, error } = await supabase
-        .from('equipment_history')
-        .select(`
-          *,
-          profiles:profiles!equipment_history_changed_by_fkey (
-            full_name
-          ),
-          equipment:equipment!equipment_history_equipment_id_fkey (
-            name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setMovements(data || []);
+      const data = await api.get('/registry/history');
+      const mappedData = data.map((item: any) => ({
+        ...item,
+        profiles: { full_name: item.profile_name },
+        equipment: { name: item.equipment_name }
+      }));
+      setMovements(mappedData || []);
     } catch (error) {
       console.error('Error fetching movements:', error);
       toast({

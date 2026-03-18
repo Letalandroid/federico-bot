@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 
 interface Category {
   id?: string;
@@ -51,12 +51,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, c
     try {
       if (category?.id) {
         // Update existing category
-        const { error } = await supabase
-          .from('categories')
-          .update(formData)
-          .eq('id', category.id);
-
-        if (error) throw error;
+        await api.put(`/categories/${category.id}`, formData);
 
         toast({
           title: "Éxito",
@@ -64,11 +59,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, c
         });
       } else {
         // Create new category
-        const { error } = await supabase
-          .from('categories')
-          .insert(formData);
-
-        if (error) throw error;
+        await api.post('/categories', formData);
 
         toast({
           title: "Éxito",

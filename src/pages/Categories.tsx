@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -51,22 +51,8 @@ const Categories = () => {
   const fetchCategories = async () => {
     try {
       // Fetch categories with equipment count
-      const { data, error } = await supabase
-        .from('categories')
-        .select(`
-          *,
-          equipment:equipment(count)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const categoriesWithCount = data?.map(cat => ({
-        ...cat,
-        equipment_count: cat.equipment?.[0]?.count || 0,
-      })) || [];
-
-      setCategories(categoriesWithCount);
+      const data = await api.get('/categories');
+      setCategories(data);
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast({
@@ -83,12 +69,7 @@ const Categories = () => {
     if (!categoryToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', categoryToDelete.id);
-
-      if (error) throw error;
+      await api.delete(`/categories/${categoryToDelete.id}`);
 
       toast({
         title: "Éxito",

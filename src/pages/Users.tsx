@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
 import {
@@ -122,41 +122,8 @@ const Users = () => {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select(
-          `
-          id,
-          full_name,
-          role,
-          created_at
-        `
-        )
-        .order("created_at", { ascending: false });
-
-      if (profilesError) throw profilesError;
-
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
-
-      if (rolesError) throw rolesError;
-
-      const usersWithRoles =
-        profiles?.map((profile) => {
-          const userRoles =
-            rolesData?.filter((r) => r.user_id === profile.id) || [];
-
-          return {
-            id: profile.id,
-            full_name: profile.full_name,
-            role: profile.role,
-            created_at: profile.created_at,
-            roles: userRoles,
-          };
-        }) || [];
-
-      setUsers(usersWithRoles);
+      const profiles = await api.get('/users');
+      setUsers(profiles || []);
     } catch (error: unknown) {
       console.error("Error fetching users:", error);
       const errorMessage =
@@ -182,22 +149,7 @@ const Users = () => {
 
   const fetchTeachers = async () => {
     try {
-      const { data, error } = await supabase
-        .from("teachers")
-        .select(
-          `
-          id, 
-          full_name, 
-          dni, 
-          email, 
-          phone,
-          status,
-          movements:movements(id)
-        `
-        )
-        .order("full_name");
-
-      if (error) throw error;
+      const data = await api.get('/teachers');
 
       // Procesar los datos para incluir información sobre movimientos
       const teachersWithMovements = (data || []).map((teacher) => ({
@@ -230,27 +182,12 @@ const Users = () => {
 
     setLoading(true);
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      await api.post('/users', {
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            full_name: formData.full_name,
-          },
-          emailRedirectTo: `${window.location.origin}/`,
-        },
+        full_name: formData.full_name,
+        role: formData.role,
       });
-
-      if (signUpError) throw signUpError;
-
-      if (data.user) {
-        const { error: roleError } = await supabase.from("user_roles").insert({
-          user_id: data.user.id,
-          role: formData.role,
-        });
-
-        if (roleError) throw roleError;
-      }
 
       toast({
         title: "Éxito",
@@ -294,15 +231,13 @@ const Users = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("teachers").insert({
+      await api.post('/teachers', {
         full_name: teacherFormData.full_name,
         dni: teacherFormData.dni,
         email: teacherFormData.email || null,
         phone: teacherFormData.phone || null,
         status: teacherFormData.status,
       });
-
-      if (error) throw error;
 
       toast({
         title: "Éxito",
@@ -366,18 +301,13 @@ const Users = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("teachers")
-        .update({
-          full_name: teacherFormData.full_name,
-          dni: teacherFormData.dni,
-          email: teacherFormData.email || null,
-          phone: teacherFormData.phone || null,
-          status: teacherFormData.status,
-        })
-        .eq("id", teacherToEdit.id);
-
-      if (error) throw error;
+      await api.put(`/teachers/${teacherToEdit.id}`, {
+        full_name: teacherFormData.full_name,
+        dni: teacherFormData.dni,
+        email: teacherFormData.email || null,
+        phone: teacherFormData.phone || null,
+        status: teacherFormData.status,
+      });
 
       toast({
         title: "Éxito",
@@ -413,32 +343,7 @@ const Users = () => {
   const handleDeleteTeacher = async (teacherId: string) => {
     setLoading(true);
     try {
-      // Primero verificar si el docente tiene movimientos asociados
-      const { data: movements, error: movementsError } = await supabase
-        .from("movements")
-        .select("id")
-        .eq("teacher_id", teacherId)
-        .limit(1);
-
-      if (movementsError) throw movementsError;
-
-      if (movements && movements.length > 0) {
-        toast({
-          title: "No se puede eliminar",
-          description:
-            "Este docente tiene préstamos asociados. No se puede eliminar.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Si no hay movimientos, proceder con la eliminación
-      const { error } = await supabase
-        .from("teachers")
-        .delete()
-        .eq("id", teacherId);
-
-      if (error) throw error;
+      await api.delete(`/teachers/${teacherId}`);
 
       toast({
         title: "Éxito",
@@ -467,21 +372,7 @@ const Users = () => {
 
     setLoading(true);
     try {
-      // Delete from user_roles first
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userToDelete.id);
-
-      if (roleError) throw roleError;
-
-      // Delete from profiles
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", userToDelete.id);
-
-      if (profileError) throw profileError;
+      await api.delete(`/users/${userToDelete.id}`);
 
       toast({
         title: "Éxito",

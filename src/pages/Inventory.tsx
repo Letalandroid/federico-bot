@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Plus, Search, Filter, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -66,17 +66,7 @@ const Inventory = () => {
 
   const fetchEquipment = async () => {
     try {
-      const { data, error } = await supabase
-        .from('equipment')
-        .select(`
-          *,
-          categories (
-            name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get('/equipment');
       setEquipment(data || []);
     } catch (error) {
       console.error('Error fetching equipment:', error);
@@ -125,19 +115,14 @@ const Inventory = () => {
 
     try {
       // Log the movement before deleting
-      await supabase.from('equipment_history').insert({
+      await api.post('/registry/history', {
         equipment_id: equipmentToDelete.id,
         action: 'delete',
-        old_values: equipmentToDelete as any,
+        old_values: equipmentToDelete,
         changed_by: user.id,
       });
 
-      const { error } = await supabase
-        .from('equipment')
-        .delete()
-        .eq('id', equipmentToDelete.id);
-
-      if (error) throw error;
+      await api.delete(`/equipment/${equipmentToDelete.id}`);
 
       toast({
         title: "Éxito",

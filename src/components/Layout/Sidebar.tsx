@@ -100,6 +100,7 @@ export const Sidebar = () => {
               <Link
                 key={item.href}
                 to={item.href}
+                id={`tour-${item.href.replace('/', '') || 'dashboard'}`}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                   isActive

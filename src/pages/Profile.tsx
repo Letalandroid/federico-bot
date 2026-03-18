@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { User, Mail, Calendar, Shield, Save, Loader2 } from 'lucide-react';
@@ -44,18 +44,15 @@ const Profile = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userProfile.id)
-        .single();
+      const data = await api.get('/users');
+      const profileData = data.find((u: any) => u.id === userProfile.id);
 
-      if (error) throw error;
+      if (!profileData) throw new Error('Perfil no encontrado');
 
-      setProfile(data);
+      setProfile(profileData);
       setFormData({
-        full_name: data.full_name,
-        email: data.email || '',
+        full_name: profileData.full_name,
+        email: profileData.email || '',
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -81,14 +78,9 @@ const Profile = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.full_name,
-        })
-        .eq('id', userProfile.id);
-
-      if (error) throw error;
+      await api.put(`/users/${userProfile.id}`, {
+        full_name: formData.full_name,
+      });
 
       toast({
         title: "Éxito",

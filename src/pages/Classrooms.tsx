@@ -6,7 +6,7 @@ import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useRole } from '@/hooks/useRole';
 import { Plus, Search, GraduationCap, Loader2, Edit, Trash2 } from 'lucide-react';
@@ -78,23 +78,8 @@ const Classrooms = () => {
   const fetchClassrooms = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('classrooms')
-        .select(`
-          *,
-          movements:movements(id)
-        `)
-        .order('name');
-
-      if (error) throw error;
-
-      // Procesar los datos para incluir información sobre movimientos
-      const classroomsWithMovements = (data || []).map(classroom => ({
-        ...classroom,
-        has_movements: classroom.movements && classroom.movements.length > 0
-      }));
-
-      setClassrooms(classroomsWithMovements);
+      const data = await api.get('/classrooms');
+      setClassrooms(data);
     } catch (error) {
       console.error('Error fetching classrooms:', error);
       toast({
@@ -127,16 +112,12 @@ const Classrooms = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('classrooms')
-        .insert({
-          name: formData.name,
-          description: formData.description || null,
-          capacity: formData.capacity ? parseInt(formData.capacity) : null,
-          location: formData.location || null,
-        });
-
-      if (error) throw error;
+      await api.post('/classrooms', {
+        name: formData.name,
+        description: formData.description || null,
+        capacity: formData.capacity ? parseInt(formData.capacity) : null,
+        location: formData.location || null,
+      });
 
       toast({
         title: "Éxito",
@@ -174,17 +155,12 @@ const Classrooms = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('classrooms')
-        .update({
-          name: formData.name,
-          description: formData.description || null,
-          capacity: formData.capacity ? parseInt(formData.capacity) : null,
-          location: formData.location || null,
-        })
-        .eq('id', classroomToEdit.id);
-
-      if (error) throw error;
+      await api.put(`/classrooms/${classroomToEdit.id}`, {
+        name: formData.name,
+        description: formData.description || null,
+        capacity: formData.capacity ? parseInt(formData.capacity) : null,
+        location: formData.location || null,
+      });
 
       toast({
         title: "Éxito",
@@ -213,33 +189,7 @@ const Classrooms = () => {
 
     setLoading(true);
     try {
-      // Primero verificar si el aula tiene movimientos asociados
-      const { data: movements, error: movementsError } = await supabase
-        .from('movements')
-        .select('id')
-        .eq('classroom_id', classroomToDelete.id)
-        .limit(1);
-
-      if (movementsError) throw movementsError;
-
-      if (movements && movements.length > 0) {
-        toast({
-          title: "No se puede eliminar",
-          description: "Este aula tiene préstamos asociados. No se puede eliminar.",
-          variant: "destructive",
-        });
-        setIsDeleteDialogOpen(false);
-        setClassroomToDelete(null);
-        return;
-      }
-
-      // Si no hay movimientos, proceder con la eliminación
-      const { error } = await supabase
-        .from('classrooms')
-        .delete()
-        .eq('id', classroomToDelete.id);
-
-      if (error) throw error;
+      await api.delete(`/classrooms/${classroomToDelete.id}`);
 
       toast({
         title: "Éxito",

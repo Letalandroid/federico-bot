@@ -18,9 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-import { Json } from "@/integrations/supabase/types";
 
 interface Category {
   id: string;
@@ -110,13 +109,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name")
-        .order("name");
-
-      if (error) throw error;
-      setCategories(data);
+      const data = await api.get('/categories');
+      setCategories(data || []);
     } catch (error) {
       console.error("Error fetching categories:", error);
     }
@@ -156,33 +150,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
       if (product?.id) {
         // Update existing product
-        const { error } = await supabase
-          .from("equipment")
-          .update(submitData)
-          .eq("id", product.id);
-
-        if (error) throw error;
+        await api.put(`/equipment/${product.id}`, submitData);
 
         // Log the movement with detailed changes
-        const changes: Array<{field: string, old_value: unknown, new_value: unknown}> = [];
-        const oldVals = product as unknown as Record<string, unknown>;
-        const newVals = submitData as unknown as Record<string, unknown>;
-
-        Object.keys(newVals).forEach(key => {
-          if (oldVals[key] !== newVals[key] && key !== 'updated_at') {
-            changes.push({
-              field: key,
-              old_value: oldVals[key],
-              new_value: newVals[key]
-            });
-          }
-        });
-
-        await supabase.from("equipment_history").insert({
+        await api.post('/registry/history', {
           equipment_id: product.id,
           action: "update",
-          old_values: product as unknown as Json,
-          new_values: submitData as unknown as Json,
+          old_values: product,
+          new_values: submitData,
           changed_by: user.id,
         });
 
@@ -192,22 +167,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         });
       } else {
         // Create new product
-        const { data: newProduct, error } = await supabase
-          .from("equipment")
-          .insert(submitData)
-          .select()
-          .single();
-
-        if (error) throw error;
+        const newProduct = await api.post('/equipment', submitData);
 
         // Log the movement
-        await supabase.from("equipment_history").insert({
+        await api.post('/registry/history', {
           equipment_id: newProduct.id,
           action: "create",
-          new_values: submitData as unknown as Json,
+          new_values: submitData,
           changed_by: user.id,
         });
-// 
+
         toast({
           title: "Éxito",
           description: "Producto creado correctamente",

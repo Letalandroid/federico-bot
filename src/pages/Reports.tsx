@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import {
   Download,
   FileSpreadsheet,
@@ -74,6 +74,8 @@ interface MovementReport {
   profiles: {
     full_name: string;
   } | null;
+  old_values?: any;
+  new_values?: any;
 }
 
 interface UserReport {
@@ -100,21 +102,16 @@ const Reports = () => {
   const fetchLowStockItems = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("equipment")
-        .select(
-          `
-          *,
-          categories (
-            name
-          )
-        `
-        )
-        .lt("available_quantity", stockThreshold)
-        .order("available_quantity", { ascending: true });
+      const data = await api.get('/equipment');
+      const filteredData = data.filter((item: any) => item.available_quantity < parseInt(stockThreshold));
+      const sortedData = filteredData.sort((a: any, b: any) => a.available_quantity - b.available_quantity);
+      
+      const mappedData = sortedData.map((item: any) => ({
+        ...item,
+        categories: { name: item.category_name }
+      }));
 
-      if (error) throw error;
-      setLowStockItems(data || []);
+      setLowStockItems(mappedData || []);
     } catch (error) {
       console.error("Error fetching low stock items:", error);
       toast({
@@ -144,18 +141,23 @@ const Reports = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("equipment_history")
-        .select(
-          `*, profiles:profiles!equipment_history_changed_by_fkey (full_name), equipment:equipment!equipment_history_equipment_id_fkey (name)`
-        ) // join correcto
-        .gte("created_at", startDate)
-        .lte("created_at", endDate + "T23:59:59")
-        .order("created_at", { ascending: false });
+      const data = await api.get('/registry/history');
+      
+      const startDateObj = new Date(startDate);
+      const endDateObj = new Date(endDate + "T23:59:59");
+      
+      const filteredData = data.filter((item: any) => {
+        const itemDate = new Date(item.created_at);
+        return itemDate >= startDateObj && itemDate <= endDateObj;
+      });
 
-      if (error) throw error;
+      const mappedData = filteredData.map((item: any) => ({
+        ...item,
+        profiles: { full_name: item.profile_name },
+        equipment: { name: item.equipment_name }
+      }));
 
-      setMovements(data || []);
+      setMovements(mappedData || []);
     } catch (error) {
       console.error("Error fetching movements:", error);
       toast({
@@ -171,21 +173,16 @@ const Reports = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get('/users');
 
       // Transformar los datos para que coincidan con UserReport
-      const transformedUsers = (data || []).map((user) => ({
+      const transformedUsers = (data || []).map((user: any) => ({
         id: user.id,
         full_name: user.full_name || "",
-        email: (user as { email?: string }).email || "",
-        role: "tecnico", // Valor por defecto
+        email: user.email || "",
+        role: user.role || "tecnico",
         created_at: user.created_at,
-        is_active: true, // Valor por defecto
+        is_active: user.is_active ?? true,
       }));
 
       setUsers(transformedUsers);

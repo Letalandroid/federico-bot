@@ -1,7 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
+
+export interface User {
+  id: string;
+  email: string;
+  user_metadata?: any;
+}
+
+export interface Session {
+  access_token: string;
+  user: User;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -23,171 +33,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-          }, 0);
-        } else {
-          setUserProfile(null);
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    checkSession();
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const checkSession = async () => {
     try {
-      // Primero intentar obtener el perfil existente
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (data) {
-        setUserProfile(data);
-        return;
-      }
-
-      // Si no existe (error PGRST116), crear uno nuevo
-      if (error && error.code === 'PGRST116') {
-        console.log('Profile not found, creating default profile for user:', userId);
-
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user) {
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: userId,
-              user_id: userId,
-              full_name: userData.user.email?.split('@')[0] || 'Usuario',
-              role: 'tecnico',
-              is_active: true
-            });
-
-          if (!insertError) {
-            // Recargar el perfil después de crearlo
-            const { data: newProfile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', userId)
-              .single();
-
-            if (newProfile) {
-              setUserProfile(newProfile);
-            }
-          } else if (insertError.code === '23505') {
-            // Perfil ya existe, obtenerlo usando user_id
-            console.log('Profile already exists, fetching by user_id');
-            const { data: existingProfile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', userId)
-              .single();
-            
-            if (existingProfile) {
-              setUserProfile(existingProfile);
-            }
-          } else {
-            console.error('Error creating profile:', insertError);
-          }
+      const storedToken = localStorage.getItem('supabase-auth-token');
+      if (storedToken) {
+        const data = await api.get('/auth/me');
+        if (data?.session) {
+          setSession(data.session);
+          setUser(data.session.user);
+          setUserProfile({
+            id: data.session.user.id,
+            email: data.session.user.email,
+            full_name: data.session.user.user_metadata?.full_name,
+            role: data.session.user.user_metadata?.role || 'tecnico'
+          });
         }
-      } else {
-        console.error('Error fetching profile:', error);
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+    } catch (e) {
+      localStorage.removeItem('supabase-auth-token');
+    } finally {
+      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        toast({
-          title: "Error de autenticación",
-          description: error.message,
-          variant: "destructive",
+      const data = await api.post('/auth/login', { email, password });
+      if (data?.session) {
+        localStorage.setItem('supabase-auth-token', JSON.stringify({ access_token: data.session.access_token }));
+        setSession(data.session);
+        setUser(data.session.user);
+        setUserProfile({
+          id: data.session.user.id,
+          email: data.session.user.email,
+          full_name: data.session.user.user_metadata?.full_name,
+          role: data.session.user.user_metadata?.role || 'tecnico'
         });
-      } else {
         toast({
           title: "¡Bienvenido!",
           description: "Has iniciado sesión correctamente",
         });
+        return { error: null };
       }
-
-      return { error };
+      return { error: "Unknown error" };
     } catch (error: any) {
+      toast({
+        title: "Error de autenticación",
+        description: error.message || "Credenciales incorrectas",
+        variant: "destructive",
+      });
       return { error };
     }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: fullName,
-          }
-        }
+      await api.post('/users', { email, password, full_name: fullName, role: 'tecnico' });
+      toast({
+        title: "¡Registro exitoso!",
+        description: "Ahora puedes iniciar sesión",
       });
-
-      if (error) {
-        toast({
-          title: "Error de registro",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "¡Registro exitoso!",
-          description: "Por favor verifica tu email para activar tu cuenta",
-        });
-      }
-
-      return { error };
+      return { error: null };
     } catch (error: any) {
+      toast({
+        title: "Error de registro",
+        description: error.message,
+        variant: "destructive",
+      });
       return { error };
     }
   };
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión correctamente",
-      });
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    localStorage.removeItem('supabase-auth-token');
+    setSession(null);
+    setUser(null);
+    setUserProfile(null);
+    toast({
+      title: "Sesión cerrada",
+      description: "Has cerrado sesión correctamente",
+    });
   };
 
   return (

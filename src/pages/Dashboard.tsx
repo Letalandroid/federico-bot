@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Package, AlertTriangle, TrendingUp, Users, ArrowRightLeft, FileSpreadsheet, Wrench, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,42 +41,30 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       // Fetch equipment stats
-      const { data: equipment } = await supabase
-        .from('equipment')
-        .select('state, available_quantity, quantity');
+      const equipment = await api.get('/equipment');
 
       // Fetch movements stats
-      const { data: movements } = await supabase
-        .from('equipment_history')
-        .select(`
-          *,
-          equipment:equipment!equipment_history_equipment_id_fkey (
-            name
-          ),
-          profiles:profiles!equipment_history_changed_by_fkey (
-            full_name
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(5);
+      const movementsData = await api.get('/registry/history');
+      const mappedMovements = movementsData.slice(0, 5).map((item: any) => ({
+        ...item,
+        equipment: { name: item.equipment_name },
+        profiles: { full_name: item.profile_name }
+      }));
 
       // Fetch users stats
-      const { data: users } = await supabase
-        .from('profiles')
-        .select('is_active');
-
+      const users = await api.get('/users');
 
       if (equipment) {
         const totalEquipment = equipment.length;
-        const availableEquipment = equipment.filter(e => e.state === 'disponible').length;
-        const inUseEquipment = equipment.filter(e => e.state === 'en_uso').length;
-        const damagedEquipment = equipment.filter(e => e.state === 'dañado').length;
-        const maintenanceEquipment = equipment.filter(e => e.state === 'mantenimiento').length;
-        const lowStockEquipment = equipment.filter(e => e.available_quantity < 5).length;
+        const availableEquipment = equipment.filter((e: any) => e.state === 'disponible').length;
+        const inUseEquipment = equipment.filter((e: any) => e.state === 'en_uso').length;
+        const damagedEquipment = equipment.filter((e: any) => e.state === 'dañado').length;
+        const maintenanceEquipment = equipment.filter((e: any) => e.state === 'mantenimiento').length;
+        const lowStockEquipment = equipment.filter((e: any) => e.available_quantity < 5).length;
 
-        const totalMovements = movements?.length || 0;
+        const totalMovements = mappedMovements?.length || 0;
         const totalUsers = users?.length || 0;
-        const activeUsers = users?.filter(u => u.is_active).length || 0;
+        const activeUsers = users?.filter((u: any) => u.is_active).length || 0;
 
         setStats({
           totalEquipment,
@@ -88,7 +76,7 @@ const Dashboard = () => {
           totalMovements,
           totalUsers,
           activeUsers,
-          recentMovements: movements || [],
+          recentMovements: mappedMovements || [],
         });
       }
     } catch (error) {
@@ -178,26 +166,31 @@ const Dashboard = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {statCards.map((card, index) => {
           const Icon = card.icon;
-          const CardComponent = card.link ? Link : 'div';
-          const cardProps = card.link ? { to: card.link } : {};
+          const cardContent = (
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {card.title}
+                </CardTitle>
+                <Icon className={`h-4 w-4 ${card.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{card.value}</div>
+                <p className="text-xs text-muted-foreground">
+                  {card.description}
+                </p>
+              </CardContent>
+            </Card>
+          );
           
-          return (
-            <CardComponent key={index} {...cardProps}>
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {card.title}
-                  </CardTitle>
-                  <Icon className={`h-4 w-4 ${card.color}`} />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{card.value}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {card.description}
-                  </p>
-                </CardContent>
-              </Card>
-            </CardComponent>
+          return card.link ? (
+            <Link key={index} to={card.link}>
+              {cardContent}
+            </Link>
+          ) : (
+            <div key={index}>
+              {cardContent}
+            </div>
           );
         })}
       </div>

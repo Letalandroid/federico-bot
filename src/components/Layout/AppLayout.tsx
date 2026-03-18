@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Loader2 } from 'lucide-react';
+import { Tutorial } from '../Tutorial';
 
 export const AppLayout = () => {
   const { user, loading } = useAuth();
@@ -31,6 +32,7 @@ export const AppLayout = () => {
           </main>
         </div>
       </div>
+      <Tutorial />
     </div>
   );
 };

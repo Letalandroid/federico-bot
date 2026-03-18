@@ -6,7 +6,7 @@ import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Plus, Search, Calendar, User, Package, ArrowLeft, CheckCircle, Clock, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -124,33 +124,28 @@ const EquipmentLoans = () => {
 
   const fetchLoans = async () => {
     try {
-      const { data, error } = await supabase
-        .from('movements')
-        .select(`
-          *,
-          equipment (
-            name,
-            brand,
-            model,
-            serial_number
-          ),
-          teachers (
-            full_name,
-            dni,
-            email
-          ),
-          classrooms (
-            name,
-            location
-          ),
-          profiles (
-            full_name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setLoans(data || []);
+      const data = await api.get('/movements');
+      const mappedData = data.map((item: any) => ({
+        ...item,
+        equipment: {
+          name: item.equipment_name,
+          brand: item.serial_number,
+          model: item.model,
+          serial_number: item.serial_number,
+        },
+        teachers: {
+          full_name: item.teacher_name,
+          dni: '',
+          email: '',
+        },
+        classrooms: {
+          name: item.classroom_name,
+        },
+        profiles: {
+          full_name: item.created_by_name,
+        }
+      }));
+      setLoans(mappedData || []);
     } catch (error) {
       console.error('Error fetching loans:', error);
       toast({
@@ -165,15 +160,9 @@ const EquipmentLoans = () => {
 
   const fetchEquipment = async () => {
     try {
-      const { data, error } = await supabase
-        .from('equipment')
-        .select('id, name, brand, model, serial_number, available_quantity')
-        .eq('state', 'disponible')
-        .gt('available_quantity', 0)
-        .order('name');
-
-      if (error) throw error;
-      setEquipment(data || []);
+      const data = await api.get('/equipment');
+      const availableEquipment = data.filter((eq: any) => eq.state === 'disponible' && eq.available_quantity > 0);
+      setEquipment(availableEquipment || []);
     } catch (error) {
       console.error('Error fetching equipment:', error);
     }
@@ -181,12 +170,7 @@ const EquipmentLoans = () => {
 
   const fetchTeachers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('teachers')
-        .select('id, full_name, dni, email')
-        .order('full_name');
-
-      if (error) throw error;
+      const data = await api.get('/teachers');
       setTeachers(data || []);
     } catch (error) {
       console.error('Error fetching teachers:', error);
@@ -195,12 +179,7 @@ const EquipmentLoans = () => {
 
   const fetchClassrooms = async () => {
     try {
-      const { data, error } = await supabase
-        .from('classrooms')
-        .select('id, name, location')
-        .order('name');
-
-      if (error) throw error;
+      const data = await api.get('/classrooms');
       setClassrooms(data || []);
     } catch (error) {
       console.error('Error fetching classrooms:', error);
@@ -237,40 +216,28 @@ const EquipmentLoans = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('movements')
-        .insert({
-          ...formData,
-          classroom_id: formData.classroom_id === 'none' ? null : formData.classroom_id,
-          created_by: userProfile.id,
-        });
-
-      if (error) throw error;
+      await api.post('/movements', {
+        ...formData,
+        classroom_id: formData.classroom_id === 'none' ? null : formData.classroom_id,
+        created_by: userProfile.id,
+      });
 
       // Update equipment availability
-      const { data: currentEquipment } = await supabase
-        .from('equipment')
-        .select('available_quantity')
-        .eq('id', formData.equipment_id)
-        .single();
+      const currentEquipmentData = await api.get(`/equipment`);
+      const currentEquipment = currentEquipmentData.find((eq: any) => eq.id === formData.equipment_id);
 
       if (currentEquipment) {
         const newQuantity = formData.movement_type === 'asignacion' 
           ? currentEquipment.available_quantity - formData.quantity
           : currentEquipment.available_quantity + formData.quantity;
 
-        const { error: updateError } = await supabase
-          .from('equipment')
-          .update({
-            available_quantity: Math.max(0, newQuantity)
-          })
-          .eq('id', formData.equipment_id);
-
-        if (updateError) throw updateError;
+        await api.put(`/equipment/${formData.equipment_id}`, {
+          available_quantity: Math.max(0, newQuantity)
+        });
       }
 
       // Log the movement
-      await supabase.from('equipment_history').insert({
+      await api.post('/registry/history', {
         equipment_id: formData.equipment_id,
         action: 'loan',
         new_values: {
@@ -316,38 +283,25 @@ const EquipmentLoans = () => {
     try {
       const returnDateTime = new Date().toISOString();
       
-      const { error } = await supabase
-        .from('movements')
-        .update({
-          status: 'completado',
-          actual_return_date: returnDateTime,
-        })
-        .eq('id', loanToReturn.id);
-
-      if (error) throw error;
+      await api.put(`/movements/${loanToReturn.id}`, {
+        status: 'completado',
+        actual_return_date: returnDateTime,
+      });
 
       // Update equipment availability
-      const { data: currentEquipment } = await supabase
-        .from('equipment')
-        .select('available_quantity')
-        .eq('id', loanToReturn.equipment_id)
-        .single();
+      const currentEquipmentData = await api.get(`/equipment`);
+      const currentEquipment = currentEquipmentData.find((eq: any) => eq.id === loanToReturn.equipment_id);
 
       if (currentEquipment) {
         const newQuantity = currentEquipment.available_quantity + loanToReturn.quantity;
 
-        const { error: updateError } = await supabase
-          .from('equipment')
-          .update({
-            available_quantity: newQuantity
-          })
-          .eq('id', loanToReturn.equipment_id);
-
-        if (updateError) throw updateError;
+        await api.put(`/equipment/${loanToReturn.equipment_id}`, {
+          available_quantity: newQuantity
+        });
       }
 
       // Log the movement
-      await supabase.from('equipment_history').insert({
+      await api.post('/registry/history', {
         equipment_id: loanToReturn.equipment_id,
         action: 'return',
         new_values: {
@@ -381,12 +335,7 @@ const EquipmentLoans = () => {
     if (!loanToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('movements')
-        .delete()
-        .eq('id', loanToDelete.id);
-
-      if (error) throw error;
+      await api.delete(`/movements/${loanToDelete.id}`);
 
       toast({
         title: "Éxito",
