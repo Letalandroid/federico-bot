@@ -11,7 +11,7 @@ services:
     ports:
       - "5430:5432"
     volumes:
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db:/docker-entrypoint-initdb.d
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "federicodb"]
@@ -54,7 +54,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "8081:8080"
+      - "8082:8080"
     volumes:
       - .:/app
       - /app/node_modules
