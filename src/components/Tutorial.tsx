@@ -14,7 +14,7 @@ export const Tutorial = () => {
   const steps: Step[] = [
     {
       target: 'body',
-      content: '¡Bienvenido al Sistema de Inventario Federico Helguero! Te daremos un rápido recorrido.',
+      content: '¡Bienvenido al nuevo Prototipo del Sistema de Inventario! Estamos muy contentos de tenerte aquí. Te daremos un rápido recorrido por las funcionalidades clave.',
       placement: 'center',
       disableBeacon: true,
     },
@@ -69,7 +69,7 @@ export const Tutorial = () => {
       callback={handleJoyrideCallback}
       styles={{
         options: {
-          primaryColor: '#0f172a',
+          primaryColor: '#3b82f6',
           zIndex: 10000,
         },
       }}
