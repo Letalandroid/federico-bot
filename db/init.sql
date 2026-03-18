@@ -207,10 +207,10 @@ ON CONFLICT (name) DO NOTHING;
 -- Password for 'admin@admin.com': 'A#m!n2025' (hashed via backend/fix_pass.js)
 INSERT INTO public.profiles (id, email, full_name, role, password_hash)
 VALUES (
-    uuid_generate_v4(), 
+    '00000000-0000-0000-0000-000000000000', 
     'admin@admin.com', 
     'Administrador', 
     'administrador', 
-    '$2b$10$EixZA5VK1pHEyYF7x9LzGe.l9kZByD.f9qF5vM/oT5vM/oT5vM/o' -- Hash for 'A#m!n2025'
+    '$2b$10$YpT80Slce3c4cKfnEiNMV.Lx4Lsp/ngKq9mQH7Xdvcd3a.g2czrIe' -- Hash for 'A#m!n2025'
 )
 ON CONFLICT (email) DO NOTHING;
