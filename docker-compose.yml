@@ -34,7 +34,8 @@ services:
       - JWT_SECRET=super_secret_jwt_key_proto
       - PORT=3000
       - CORS_ORIGIN=https://federico-system-inventary.space
-    # Se remueve ports para que sea interno
+    ports:
+      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
@@ -48,7 +49,7 @@ services:
       dockerfile: Dockerfile
     container_name: federico_frontend
     environment:
-      - VITE_API_URL=/api
+      - VITE_API_URL=https://federico_api.federico-system-inventary.space
       - VITE_N8N_URL=http://localhost:5678
     # Se remueve ports, Nginx los expondrá
     depends_on:
