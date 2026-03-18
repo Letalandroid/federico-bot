@@ -33,7 +33,7 @@ services:
       - DB_NAME=federicodb
       - JWT_SECRET=super_secret_jwt_key_proto
       - PORT=3000
-      - CORS_ORIGIN=http://localhost:8080
+      - CORS_ORIGIN=https://federico-system-inventary.space
     # Se remueve ports para que sea interno
     depends_on:
       db:
