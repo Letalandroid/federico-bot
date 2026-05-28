@@ -51,6 +51,7 @@ services:
     environment:
       - VITE_API_URL=https://federico_api.federico-system-inventary.space/api
       - VITE_N8N_URL=https://n8n.federico-system-inventary.space/webhook/3a65b478-ad7f-4cce-add5-11b0664116f2
+      - VITE_DOCKER=true
     # Se remueve ports, Nginx los expondrá
     depends_on:
       - backend
@@ -59,6 +60,8 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      # Evita que Vite lea .git/objects del host (provoca errores de import-analysis)
+      - /app/.git
 
   proxy:
     image: nginx:alpine
