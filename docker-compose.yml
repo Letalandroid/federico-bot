@@ -32,10 +32,9 @@ services:
       - DB_PORT=5432
       - DB_NAME=federicodb
       - JWT_SECRET=super_secret_jwt_key_proto
-      - PORT=3000
       - CORS_ORIGIN=https://federico-system-inventary.space
     ports:
-      - "3000:3000"
+      - "3003:3000"
     depends_on:
       db:
         condition: service_healthy
